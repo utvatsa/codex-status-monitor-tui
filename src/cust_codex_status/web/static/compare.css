@@ -1,0 +1,32 @@
+/* The "compare" strip shown above both versions of the page. Self-contained on purpose: it uses none of either
+   page's theme variables, so it looks the same in every theme and never changes how the page underneath renders. */
+.cmp {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 36px;
+  position: sticky;                /* pinned: it stays on screen, and the pages place their own sticky or fixed parts below it (--cmp-h) */
+  top: 0;
+  z-index: 1000;
+  padding: 4px 16px;
+  background: #11151b;
+  color: #aab4c3;
+  border-bottom: 1px solid #262d38;
+  font: 12.5px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.cmp * { box-sizing: border-box; }
+.cmp-label { font-weight: 600; color: #7f8a9a; letter-spacing: .02em; white-space: nowrap; }
+.cmp-seg { display: inline-flex; padding: 2px; gap: 2px; background: #0b0e13; border: 1px solid #262d38; border-radius: 8px; }
+.cmp-seg a {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 11px; border-radius: 6px;
+  color: #aab4c3; text-decoration: none; font-weight: 600; white-space: nowrap;
+}
+.cmp-seg a:hover { color: #fff; }
+.cmp-seg a[aria-current="page"] { background: #e8ebf0; color: #11151b; cursor: default; }
+.cmp-seg a:focus-visible { outline: 2px solid #e879f9; outline-offset: 1px; }
+.cmp-note { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-note b { color: #e8ebf0; font-weight: 600; }
+.cmp-key { font: 11px ui-monospace, "SF Mono", Menlo, monospace; padding: 1px 6px; border: 1px solid #323b47; border-radius: 4px; color: #e8ebf0; }
+@media (max-width: 760px) { .cmp-note, .cmp-label { display: none; } .cmp { justify-content: center; } }
