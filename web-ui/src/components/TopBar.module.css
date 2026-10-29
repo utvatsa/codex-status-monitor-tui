@@ -1,0 +1,51 @@
+.bar {
+  position: sticky;
+  top: var(--cmp-h, 0px);
+  z-index: 30;
+  height: var(--header-h);
+  background: color-mix(in srgb, var(--bg-elev) 82%, transparent);
+  backdrop-filter: saturate(170%) blur(12px);
+  -webkit-backdrop-filter: saturate(170%) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.inner { max-width: 1320px; height: 100%; margin: 0 auto; padding: 0 var(--sp-5); display: flex; align-items: center; gap: var(--sp-3); }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
+.brand img { border-radius: 6px; }
+.readonly {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 1px 8px;
+}
+.status { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; margin-left: var(--sp-4); font-size: var(--fs-sm); }
+.statusText { font-weight: 600; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-3); }
+.live { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 22%, transparent); animation: pulse 2.4s ease-in-out infinite; }
+.connecting, .retrying { background: var(--warn); }
+.stopped { background: var(--bad); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--good) 8%, transparent); } }
+.host {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meta { color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.actions { display: flex; align-items: center; gap: var(--sp-1); }
+
+@media (max-width: 900px) {
+  .meta, .readonly { display: none; }
+  .status { margin-left: var(--sp-2); }
+}
+@media (max-width: 640px) {
+  .inner { padding: 0 var(--sp-4); gap: var(--sp-2); }
+  .brand span, .statusText, .hideNarrow { display: none; }
+}

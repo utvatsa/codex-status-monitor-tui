@@ -1,0 +1,78 @@
+/* Shared building blocks: badge, meter, key cap, buttons. */
+
+/* --- badge: health only (OK green, AMBER amber, RED solid red) ---------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  flex: none;
+}
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ok { background: var(--ok-soft); color: var(--ok); }
+.amber { background: var(--amber-soft); color: var(--amber); }
+.red { background: var(--red-solid); color: #fff; }
+.large { height: 28px; padding: 0 11px; font-size: var(--fs-sm); }
+
+/* --- meter -------------------------------------------------------------------------------------------------------- */
+.meter { position: relative; display: block; height: 6px; width: 100%; border-radius: var(--r-full); background: var(--track); overflow: hidden; }
+.meterThick { height: 8px; }
+.fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; transition: width .5s var(--ease); }
+.mark { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text-2); opacity: .75; }
+.markRed { background: var(--red-solid); opacity: 1; }
+.good { background: var(--good); }
+.warn { background: var(--warn); }
+.bad { background: var(--bad); }
+
+/* --- key cap ------------------------------------------------------------------------------------------------------ */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--bg-elev);
+  color: var(--text-2);
+  font: 600 10.5px / 1 var(--font-mono);
+  white-space: nowrap;
+}
+
+/* --- buttons ------------------------------------------------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.btn:hover { background: var(--bg-hover); }
+.btn:active { transform: translateY(.5px); }
+.btn:disabled { opacity: .5; cursor: default; }
+.ghost { border-color: transparent; background: transparent; box-shadow: none; color: var(--text-2); }
+.ghost:hover { color: var(--text); background: var(--bg-hover); }
+.primary { background: var(--accent); border-color: transparent; color: var(--accent-fg); }
+.primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
+.small { height: 26px; padding: 0 9px; font-size: var(--fs-xs); gap: 5px; }
+.icon { width: 32px; padding: 0; }
+.small.icon { width: 26px; }
+.copied { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); }

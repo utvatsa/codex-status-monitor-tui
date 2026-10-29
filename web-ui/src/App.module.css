@@ -1,0 +1,49 @@
+.main {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-5) calc(var(--keybar-h) + var(--sp-8));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.twoUp { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--sp-5); align-items: start; }
+.toolbarWrap {
+  position: sticky;
+  top: calc(var(--cmp-h, 0px) + var(--header-h));
+  z-index: 20;
+  margin: 0 calc(-1 * var(--sp-5));
+  padding: var(--sp-3) var(--sp-5);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.legend { margin-top: calc(-1 * var(--sp-3)); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: var(--fs-sm); color: var(--text-2); }
+.legend > span:not(:first-child) { margin-left: var(--sp-3); }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: var(--sp-5); align-items: start; }
+.lists { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+.empty { padding: var(--sp-6) var(--sp-5); color: var(--text-2); text-align: center; }
+.loading { animation: fade 1.2s ease-in-out infinite alternate; }
+@keyframes fade { to { opacity: .45; } }
+.hidden { padding: var(--sp-3) var(--sp-5); border-top: 1px solid var(--border); color: var(--amber); font-size: var(--fs-sm); }
+.footnote { color: var(--text-3); font-size: var(--fs-xs); }
+.banner { padding: 10px var(--sp-5); text-align: center; font-size: var(--fs-sm); background: var(--amber-soft); color: var(--amber); border-bottom: 1px solid var(--border); }
+code { font-size: .92em; padding: 1px 5px; border-radius: 5px; background: var(--bg-sunken); }
+
+/* waiting states */
+.down { max-width: 520px; margin: 20vh auto 0; padding: 0 var(--sp-4); text-align: center; display: grid; gap: var(--sp-3); justify-items: center; color: var(--text-2); }
+.down h1 { font-size: var(--fs-xl); color: var(--text); }
+.skeleton { max-width: 1320px; margin: 0 auto; padding: var(--sp-6) var(--sp-5); display: grid; gap: var(--sp-5); }
+.skeleton div div, .skBar, .skBlock { border-radius: var(--r-lg); background: linear-gradient(90deg, var(--bg-sunken), var(--bg-hover), var(--bg-sunken)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+.skBar { height: 32px; width: 40%; }
+.skTiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
+.skTiles div { height: 108px; }
+.skBlock { height: 180px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+@media (max-width: 1100px) { .twoUp { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .main { padding: var(--sp-4) var(--sp-4) calc(var(--keybar-h) + var(--sp-6)); gap: var(--sp-4); }
+  .toolbarWrap { position: static; margin: 0; padding: 0; background: none; backdrop-filter: none; }
+  .legend > span:not(:first-child) { margin-left: 0; }
+  .skTiles { grid-template-columns: 1fr 1fr; }
+}

@@ -1,0 +1,20 @@
+.region {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--keybar-h) + var(--sp-4));
+  z-index: 60;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  white-space: nowrap;
+  animation: rise .22s var(--ease);
+}
+@keyframes rise { from { opacity: 0; transform: translateY(8px) scale(.98); } }
