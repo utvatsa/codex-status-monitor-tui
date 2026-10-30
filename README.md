@@ -15,6 +15,8 @@ under [What differs from the Claude version](#what-differs-from-the-claude-versi
 ## Features
 - **Health badge per chat:** `OK` / `AMBER` / `RED` plus the reason. The levels depend on the chat's context window (see
   [Alerts](#alerts-and-context-windows)); high memory and an idle chat holding memory are AMBER too. Header shows live counts.
+- **Six metric tiles** at the top ([below](#the-metric-tiles)): threads, prompt-cache hit, reasoning share, context headroom, tokens per turn
+  and the busiest rate limit, plus an approval / model / surface line.
 - **Rate limits:** the primary (5-hour) and secondary (weekly) windows with bars, taken from the latest `token_count` event in the
   newest rollout files, flagged STALE when old.
 - **View dial:** `--level 0-100` from one line per chat up to everything (default 75).
@@ -73,6 +75,33 @@ cust-codex-status --json | jq .   # raw data
 ```
 Inside Codex (CLI or IDE extension) type `$cust-codex-status`, or pick it from `/skills`.
 
+### The metric tiles
+The top of every report is a strip of six tiles over your **live** chats (Codex calls them threads), with the same numbers on the web page
+(`totals.metrics` in the snapshot, `metrics` in `--json`):
+
+| Tile | What it shows |
+|---|---|
+| THREADS | live count, with an OK / AMBER / RED bar |
+| CACHE HIT | cached input / (uncached + cached input): prompt caching is the main cost lever in Codex |
+| REASONING | reasoning tokens as a share of output, and the most common reasoning effort among the live chats |
+| CONTEXT HEADROOM | the least remaining context window of any live chat, and which chat it is |
+| TOKENS / TURN | average tokens per turn (input + cached + output), a sparkline per thread, turns and total |
+| RATE LIMIT | the busiest of the 5-hour and weekly windows, with a bar and the reset time |
+
+Under the tiles one line gives the **approval policy** (`untrusted`, `on-failure`, `on-request`, `never`), **model** and **surface**
+(terminal, desktop app, VS Code, JetBrains ...) mix of the live chats. The strip adapts to the terminal: six boxes on a wide one (about
+114 columns), 3 x 2 on a normal one, one-line chips (`▍CACHE 82% of input`) below that and on the minimal and compact views
+(`--level` under 45). `--no-color` gives the same layout without colour. With no live chat the tiles show a dash; the rate-limit tile still
+works because limits are read from the newest rollout.
+
+### The look
+Not the Claude edition's cyan and rounded boxes. Palette: near-black **ink**, **orchid** primary (titles, resume commands, the cursor),
+**coral** secondary (markers, selection, numbers) and off-white text. Green, amber and red appear only as health (OK / AMBER / RED, bars
+that measure health). Boxes have heavy `┏━┓` edges and titles read `▍CODEX ▸ usage limits`; health badges are pills (`▐OK▌`, or a rounded
+block on a card); gauges are thin lines (`━━━━┄┄┄┄`). It uses 256 colours when the terminal advertises them (`TERM` with `256`, or
+`COLORTERM=truecolor`) and falls back to the 8 ANSI colours (magenta for orchid), and `NO_COLOR` or `--no-color` turns colour off. On a
+light terminal background (`COLORFGBG`) the text colours darken.
+
 ### View levels
 | Level | View |
 |---|---|
@@ -85,7 +114,7 @@ Inside Codex (CLI or IDE extension) type `$cust-codex-status`, or pick it from `
 Explicit flags (`--compact`, `-D`, `-v`, `--no-prompts`) add to the chosen level.
 
 ### TUI (the default on a terminal; `--no-tui` for static output)
-Two modes, shown in the bar above the key helpers. **NAVIGATE** (cyan highlight): look around. **SELECTED** (green): you picked a chat.
+Two modes, shown in the bar above the key helpers. **NAVIGATE** (orchid highlight): look around. **SELECTED** (coral): you picked a chat.
 
 | Key | NAVIGATE | SELECTED |
 |---|---|---|
@@ -134,8 +163,8 @@ A bottom bar shows the mode (NAVIGATE / SELECTED) and the keys, or the selected 
 | `e` / `u` | expand or collapse every row / account details |
 | `r` `/` `d` `?` | refresh now, filter, next theme, all keys |
 
-**Themes:** Auto (follows the system), Light, Dark, and three extra palettes: Light · Paper (warm), Dark · Nord (cool blue-grey) and
-Dark · Dracula (purple). Pick one in the top bar or press `d`; the choice, the view level and the archived prompt line are remembered
+**Themes:** Auto (follows the system: Orchid or Cream), Orchid (dark, the default), Cream (light), Sunset, Phosphor and Ink & Paper, the same
+ids on every page (old `paper`, `nord` and `dracula` values still work and map to Cream, Orchid and Sunset). Pick one in the top bar or press `d`; the choice, the view level and the archived prompt line are remembered
 per browser. `?level=0-100` and `?theme=<name>` in the address set them too (handy for a bookmark).
 
 **How data gets there (the bridge):** the TUI reads the disk exactly as before; after each read it hands the result to a small in-process
