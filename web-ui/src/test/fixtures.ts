@@ -7,7 +7,7 @@ export function session(over: Partial<Session> = {}): Session {
     health: "OK", why: [], tips: [], model: "opus-5-5", ctx_pct: 20, ctx: "40.0k", window: "200.0k", maybe_1m: false,
     window_tokens: 200_000, window_source: "guess", ctx_amber_pct: 85, ctx_red_pct: 95, ctx_amber: "170.0k", ctx_red: "190.0k", window_offer: null, levels_custom: false, clear_command: "cust-codex-status --clear-window 11111111",
     waiting_for: null, files: { total_mb: 12.5, parts: [["transcript", 9.3], ["temp", 3.2]] }, advice: [],
-    turns: 3, out: "1.2k", inp: "4.0k", cache_r: "30.0k", reasoning: "300", tokens: "35.2k", cost: "-", branch: "main", entry: "cli", mem_mb: 100, pid: 123, folder: "~/proj", running_in: "terminal · CLI",
+    turns: 3, out: "1.2k", inp: "4.0k", cache_r: "30.0k", reasoning: "300", tokens: "35.2k", cost: "-", branch: "main", approval: "on-request", entry: "cli", mem_mb: 100, pid: 123, folder: "~/proj", running_in: "terminal · CLI",
     source: "terminal", last: "2m", up: "01:00", first_prompt: "first prompt text", latest_prompt: "latest prompt text",
     resume: "cd ~/proj && codex resume 11111111-aaaa", clean: "cd ~/proj && codex", subagents: [], ...over,
   };
@@ -27,7 +27,7 @@ export function snapshot(over: Partial<Snapshot> = {}): Snapshot {
     account: { email: "test@example.com", plan: "pro", tier: "tier_x", fields: [["plan", "pro"]] },
     usage: { limits: [{ label: "5-hour session", pct: 42, resets: "2.0h", binding: true }], pools: [], cached_ago: "1m", stale: false },
     warnings: ["busy-chat (terminal · CLI): context 89% full"], system: [],
-    totals: { live: 2, mem_mb: 200, live_cost: 0, live_tokens: 70400, archived: 1, arc_cost: 0, arc_tokens: 35200, health: { OK: 1, AMBER: 1, RED: 0 } },
+    totals: { metrics: { threads: 2, turns: 6, tokens: 70400, cache_pct: 87, cached: 60000, fresh_input: 8000, reasoning_pct: 25, reasoning: 600, output: 2400, tokens_per_turn: 11733, headroom_pct: 11, headroom_chat: "busy-chat", approval: [["on-request", 2]], effort: [["medium", 1], ["high", 1]] }, live: 2, mem_mb: 200, live_cost: 0, live_tokens: 70400, archived: 1, arc_cost: 0, arc_tokens: 35200, health: { OK: 1, AMBER: 1, RED: 0 } },
     sessions,
     view: { level: 75, levels: [], reps: [10, 30, 60, 75, 95], show_live: true, has_arc: true, days: 7, project: null, hidden: 0, ctx_amber: 85, ctx_red: 95, ctx_rules: { "200k": [85, 95], "1m": [60, 90] } },
     ...over,

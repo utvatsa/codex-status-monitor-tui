@@ -29,7 +29,7 @@ describe("App", () => {
   it("renders the account, KPIs, usage, attention and live chats", () => {
     renderWith();
     expect(screen.getByRole("heading", { name: "test@example.com" })).toBeInTheDocument();
-    expect(screen.getByText("Live chats", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("Threads", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("5-hour session")).toBeInTheDocument();
     const attention = screen.getByRole("region", { name: /Attention/ });
     expect(within(attention).getByText("busy-chat")).toBeInTheDocument();
@@ -84,8 +84,8 @@ describe("App", () => {
     await user.click(within(card).getByRole("button", { name: /Copy/ }));
     expect(await navigator.clipboard.readText()).toBe("cd ~/proj && codex resume 11111111-aaaa");
     await user.click(screen.getByRole("button", { name: /Switch theme/ }));
-    await user.click(screen.getByRole("option", { name: /Dark · Nord/ }));
-    expect(document.documentElement.dataset.theme).toBe("nord");
+    await user.click(screen.getByRole("option", { name: /Phosphor/ }));
+    expect(document.documentElement.dataset.theme).toBe("phosphor");
   });
 
   it("on a narrow screen the details open under the selected row instead of a side panel", async () => {
@@ -133,14 +133,26 @@ describe("App", () => {
     expect(within(screen.getByRole("region", { name: /Attention/ })).getByText("weekly limit")).toBeInTheDocument();
   });
 
-  it("the Agents tile counts main agents plus running subagents", () => {
+  it("the six Codex tiles show threads, cache hit, reasoning, headroom, tokens per turn and the busiest rate limit", () => {
     const sub = (code: string, running: boolean) => ({ code, type: "Explore", desc: "look around", model: "opus-5-5", ctx: "9k", ago: "1m", turns: 4, out: "1.2k", phase: (running ? "active" : "done") as "active" | "done", running });
     const sessions = snapshot().sessions;
     sessions[0] = session({ subagents: [sub("abcdef0123", true), sub("1234567890", false)] });
     renderWith(snapshot({ sessions }));
-    const tile = screen.getByText("Agents", { selector: "span" }).closest("div")!.parentElement!;
-    expect(within(tile).getByText("3")).toBeInTheDocument();                    // 2 live chats + 1 running subagent
-    expect(within(tile).getByText(/2 main · 1 subagent running/)).toBeInTheDocument();
+    const label = (t: string) => screen.getByText(t, { selector: "span" }).closest("div")!.parentElement!;
+    expect(within(label("Threads")).getByText("2 subagents · 1 running")).toBeInTheDocument();
+    expect(within(label("Cache hit")).getByText("87")).toBeInTheDocument();
+    expect(within(label("Cache hit")).getByRole("meter", { name: "Prompt cache hit rate" })).toHaveAttribute("aria-valuenow", "87");
+    expect(within(label("Reasoning")).getByText("effort medium 1 · high 1")).toBeInTheDocument();
+    expect(within(label("Headroom")).getByText("left in busy-chat")).toBeInTheDocument();
+    expect(within(label("Tokens / turn")).getByText("6 turns · 70.4k tokens")).toBeInTheDocument();
+    expect(within(label("Rate limit")).getByText("5-hour session · resets in 2.0h")).toBeInTheDocument();
+  });
+
+  it("a row under the tiles lists surface, model and approval policy of the live threads", () => {
+    renderWith();
+    const row = screen.getByLabelText("Surface, model and approval policy of the live threads");
+    expect(within(row).getByText("terminal · CLI")).toBeInTheDocument();
+    expect(within(row).getByText("on-request")).toBeInTheDocument();
   });
 });
 
@@ -545,16 +557,7 @@ describe("agents view", () => {
   const tile = () => screen.getByRole("button", { name: "Open the Agents view" });
   const agents = () => screen.getByRole("region", { name: "Agents" });
 
-  it("the Agents tile lists up to 3 main agents, working first, with +k running and +N more chats", () => {
-    renderWith(data());
-    const items = [...tile().querySelectorAll("li")];
-    expect(items.map((i) => i.getAttribute("data-state"))).toEqual(["active", "idle", "idle", null]);      // the last item is the "+N more chats" line
-    expect(items[0]).toHaveTextContent("busy-chat");
-    expect(items[1]).toHaveTextContent("+1 running");
-    expect(items[3]).toHaveTextContent("+1 more chats");
-  });
-
-  it("clicking the tile (and Enter) shows the agents view in place of the chat list", async () => {
+  it("clicking the Threads tile (and Enter) shows the agents view in place of the chat list", async () => {
     const user = renderWith(data());
     await user.click(tile());
     expect(agents()).toBeInTheDocument();

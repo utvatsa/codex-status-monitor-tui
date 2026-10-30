@@ -16,9 +16,9 @@ export function Badge({ level, large }: { level: Health; large?: boolean }) {
 }
 
 /** `levels` = [amber %, red %] of THIS meter's own scale: the fill turns amber / red there and two ticks mark them (default: the fixed 60 / 85). */
-export function Meter({ pct, thick, label, levels }: { pct: number; thick?: boolean; label?: string; levels?: [number, number] }) {
+export function Meter({ pct, thick, label, levels, tone: forced }: { pct: number; thick?: boolean; label?: string; levels?: [number, number]; tone?: Tone }) {
   const v = Math.max(0, Math.min(100, pct));
-  const t: Tone = levels ? (v >= levels[1] ? "bad" : v >= levels[0] ? "warn" : "good") : tone(v);
+  const t: Tone = forced ? forced : levels ? (v >= levels[1] ? "bad" : v >= levels[0] ? "warn" : "good") : tone(v);
   return (
     <span className={cx(s.meter, thick && s.meterThick)} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={v} aria-label={label}
       title={levels ? `alerts at ${levels[0]}% (amber) and ${levels[1]}% (red)` : undefined}>

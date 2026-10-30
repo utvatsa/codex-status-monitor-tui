@@ -35,9 +35,16 @@ export function breakdown(sessions: Session[]): { hosts: [string, number][]; mod
   return { hosts: count((s) => s.running_in), models: count((s) => modelLabel(s.model)) };
 }
 
+/** Live chats per approval policy (never | on-request ...), most common first; the server sends the same in `totals.metrics.approval`. */
+export function approvalOf(sessions: Session[]): [string, number][] {
+  const m = new Map<string, number>();
+  for (const s of sessions) m.set(s.approval ?? "default", (m.get(s.approval ?? "default") ?? 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
 /** The colour mode a theme belongs to; "auto" follows the system. */
 export const modeOf = (t: ThemeId): "light" | "dark" | "auto" =>
-  t === "auto" ? "auto" : t === "light" || t === "paper" ? "light" : "dark";
+  t === "auto" ? "auto" : t === "light" || t === "ink" ? "light" : "dark";
 
 /** What the user sees right now, resolving "auto" through the system setting. */
 export function effectiveMode(t: ThemeId): "light" | "dark" {

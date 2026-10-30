@@ -281,7 +281,7 @@ useEffect(() => {
 **`useMediaQuery`**: built on `useSyncExternalStore`, React's official way to read something that lives outside React (here
 `window.matchMedia`) and re-render when it changes. `App` uses it to pick the side panel (wide screens) or inline details (narrow).
 
-**`useTheme`**: keeps the theme in state, and in an effect writes it to `<html data-theme="nord">` and to `localStorage`. CSS does the
+**`useTheme`**: keeps the theme in state, and in an effect writes it to `<html data-theme="dark">` and to `localStorage`. CSS does the
 rest (step 7). `lib/storage.ts` wraps `localStorage` in `try/catch`, because it can throw in private windows.
 
 **`useHotkeys`**: one `keydown` listener for the whole page. Two techniques worth learning:
@@ -320,7 +320,7 @@ colour = health" holds here too.
 **Themes** are only new values for the same variables:
 
 ```css
-:root[data-theme="nord"]  { --bg: #2b303b; --accent: #88c0d0; … }
+:root[data-theme="dark"]  { --bg: #0d0a14; --accent: #e879f9; … }
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) { …dark values… } }   /* "Auto" follows the OS */
 ```
 
@@ -396,7 +396,7 @@ toasts; colour never the *only* signal (badges also say OK / AMBER / RED); and k
 `App` is where data, state and components meet. Read it top to bottom:
 
 1. **Inputs:** `useSnapshot()` (server data), `useReducer(uiReducer, …)` (UI state), `useTheme`, `useNow`, `useMediaQuery`.
-2. **Start state** from saved preferences and the address: `?level=95&theme=nord` (`startState()`, run once via `useMemo`).
+2. **Start state** from saved preferences and the address: `?level=95&theme=phosphor` (`startState()`, run once via `useMemo`).
 3. **Derived data, computed on each render:** the effective flags; `live` and `archived` lists after the filter; `items` (their order is the
    numbering); `current` (the chat under the cursor). Nothing derived is stored in state.
 4. **Effects**:
@@ -501,7 +501,7 @@ Unit tests can't tell you that a column overflows at phone width or that a theme
 headless Chrome through the **DevTools protocol** (Node 22+ has `WebSocket` built in, so there's nothing to install):
 
 ```sh
-node scripts/screenshot.mjs "http://127.0.0.1:8765/?theme=nord&level=30" /tmp/phone.png 390 1 a wait2000 Down Enter
+node scripts/screenshot.mjs "http://127.0.0.1:8765/?theme=phosphor&level=30" /tmp/phone.png 390 1 a wait2000 Down Enter
 ```
 
 It emulates the viewport (Chrome's `--window-size` won't go below ~500 px, so phones need emulation), presses keys, prints
@@ -621,7 +621,7 @@ Separate concerns, separate state.
 
 ### 16.6 Colour modes
 `modeOf()` says whether a theme is light or dark; the header's Light / Dark / Auto switch sets the base themes, and a second menu holds the palettes
-(Paper, Nord, Dracula). `effectiveMode()` resolves Auto through `prefers-color-scheme`, so the `m` key can flip whatever you currently see.
+(Cream, Sunset, Phosphor, Ink & Paper; ids dark, light, sunset, phosphor, ink). `effectiveMode()` resolves Auto through `prefers-color-scheme`, so the `m` key can flip whatever you currently see.
 
 ### 16.7 Components worth studying
 - `Chart.tsx` and `series.ts`: the live chart and its history store (section 16.4). `parts.tsx`: `Gauge`, `FleetRing`, `Meter`, `CodeChip`, `ToastProvider`, `CopyBtn`.

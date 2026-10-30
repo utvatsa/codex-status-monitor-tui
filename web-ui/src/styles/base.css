@@ -10,7 +10,6 @@ body {
   background: var(--bg);
   color: var(--text);
   font: var(--fs-md) / 1.5 var(--font-sans);
-  font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

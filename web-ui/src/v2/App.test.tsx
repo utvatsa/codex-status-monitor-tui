@@ -28,7 +28,7 @@ describe("Aurora design", () => {
   it("renders the account, fleet health, usage limits and the live chats", () => {
     renderWith();
     expect(screen.getByRole("heading", { name: "test@example.com" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Overview")).toHaveTextContent("Live chats");
+    expect(screen.getByLabelText("Overview")).toHaveTextContent("Threads");
     expect(screen.getByText("5-hour session")).toBeInTheDocument();
     expect(screen.getAllByText(/demo-chat/).length).toBeGreaterThan(0);
     expect(screen.queryByText("Old chat")).not.toBeInTheDocument();            // archived is off at level 75
@@ -64,7 +64,7 @@ describe("Aurora design", () => {
     expect(chatList().getAllByText(/busy-chat/).length).toBeGreaterThan(0);
   });
 
-  it("counts every live chat as a main agent plus its running subagents, and lists codes in the drawer", async () => {
+  it("the Threads tile notes the subagents, and the drawer lists their codes", async () => {
     const data = snapshot();
     data.sessions[0] = session({ subagents: [
       { code: "acd8d62eb3e440f19", type: "Plan", desc: "Review the spec", model: "opus-5-5", ctx: "12.0k", ago: "1m", turns: 7, out: "2.5k", phase: "active", running: true },
@@ -72,9 +72,9 @@ describe("Aurora design", () => {
     ] });
     const user = renderWith(data);
     const overview = screen.getByLabelText("Overview");
-    expect(overview).toHaveTextContent("3running");                       // 2 live chats + 1 running subagent
-    expect(overview).toHaveTextContent("2 main · 1 subagent running");
-    expect(screen.getByText(/2 subagents · 1 running/)).toBeInTheDocument();
+    expect(overview).toHaveTextContent("2 subagents · 1 running");                // the Threads tile notes the subagents
+    expect(overview).toHaveTextContent("Cache hit");
+    expect(screen.getAllByText(/2 subagents · 1 running/).length).toBeGreaterThan(1);       // the tile and the chat's own row
     await user.keyboard("{Enter}");
     expect(details().getByText("main agent")).toBeInTheDocument();
     expect(details().getByRole("button", { name: "Copy agent code acd8d62" })).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("Aurora design", () => {
     await user.click(screen.getByRole("button", { name: "Switch theme" }));
     expect(screen.getByText("Switch theme", { selector: ".pop-h" })).toBeInTheDocument();
     expect(screen.getAllByRole("menuitemradio")).toHaveLength(6);
-    await user.click(screen.getByRole("menuitemradio", { name: /^Dark(?! ·)/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: /^Orchid/ }));
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
     await user.keyboard("m");
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
@@ -120,8 +120,8 @@ describe("Aurora design", () => {
     const user = renderWith();
     await user.keyboard("{Meta>}k{/Meta}");
     expect(screen.getByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
-    await user.keyboard("dracula{Enter}");
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dracula");
+    await user.keyboard("sunset{Enter}");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("sunset");
     expect(screen.queryByRole("dialog", { name: "Command palette" })).not.toBeInTheDocument();
   });
 
@@ -518,26 +518,6 @@ describe("Aurora design", () => {
       await user.click(screen.getByRole("button", { name: "full" }));
       expect(chatList().getAllByText(/first prompt text/)[0].closest(".prompt")).toHaveClass("one");
     });
-
-    it("the top panel lists main agents (active, waiting, idle) with running counts and opens a chat on click", async () => {
-      const user = renderWith(withAgents());
-      const panel = within(screen.getByLabelText("Main agents"));
-      const names = panel.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
-      expect(names).toEqual(["Open busy-chat", "Open demo-chat"]);                       // waiting before idle
-      expect(panel.getByRole("button", { name: "Open demo-chat" })).toHaveTextContent("+2 running");
-      expect(panel.getByRole("button", { name: "Open busy-chat" }).closest("li")).toHaveAttribute("data-state", "waiting");
-      expect(panel.getByRole("button", { name: "Open demo-chat" }).closest("li")).toHaveAttribute("data-state", "idle");
-      await user.click(panel.getByRole("button", { name: "Open busy-chat" }));
-      expect(screen.getByLabelText("Chat details")).toHaveAttribute("data-open");
-      expect(details().getByRole("heading", { name: "busy-chat" })).toBeInTheDocument();
-    });
-
-    it("the top panel folds chats beyond three into +N more chats", () => {
-      const data = withAgents();
-      data.sessions = [...data.sessions, session({ sid: "44444444-d", name: "d", label: "d" }), session({ sid: "55555555-e", name: "e", label: "e" })];
-      renderWith(data);
-      expect(within(screen.getByLabelText("Main agents")).getByText("+1 more chats")).toBeInTheDocument();
-    });
   });
 
   describe("agents view", () => {
@@ -571,13 +551,6 @@ describe("Aurora design", () => {
       await user.click(within(screen.getByRole("region", { name: "Chats" })).getByRole("button", { name: "agents" }));
       expect(sections().agents).toBeInTheDocument();
       await user.keyboard("{Escape}");
-      expect(sections().chats).toBeInTheDocument();
-    });
-
-    it("clicking a main-agent line in the tile still opens the drawer, not the view", async () => {
-      const user = renderWith(data());
-      await user.click(within(screen.getByLabelText("Main agents")).getByRole("button", { name: "Open busy-chat" }));
-      expect(screen.getByLabelText("Chat details")).toHaveAttribute("data-open");
       expect(sections().chats).toBeInTheDocument();
     });
 

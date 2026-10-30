@@ -172,7 +172,7 @@ function Page() {
               : "Connection lost, reconnecting…"}
           </div>
         )}
-        <Hero snapshot={snapshot} liveChats={live} series={series} showAccount={ui.showAccount} onAccount={() => dispatch({ type: "toggle", key: "showAccount" })} minimal={f.minimal} showArc={f.showArc}
+        <Hero snapshot={snapshot} liveChats={live} series={series} showAccount={ui.showAccount} onAccount={() => dispatch({ type: "toggle", key: "showAccount" })} minimal={f.minimal}
           query={ui.query} onFilter={(query) => dispatch({ type: "setQuery", query })}
           onPick={(id) => dispatch({ type: "pick", id })} onArchived={(id) => { setArcOn(true); dispatch({ type: "pick", id }); }} onAgents={() => setMainView("agents")} />
         {mainView === "agents" ? (

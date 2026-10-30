@@ -8,23 +8,27 @@
   height: 22px;
   padding: 0 8px;
   border-radius: var(--r-sm);
-  font-size: var(--fs-xs);
-  font-weight: 650;
-  letter-spacing: .04em;
+  font: 650 var(--fs-xs) var(--font-mono);
+  letter-spacing: .06em;
   white-space: nowrap;
   flex: none;
 }
-.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge::before { content: ""; width: 6px; height: 6px; background: currentColor; }
 .ok { background: var(--ok-soft); color: var(--ok); }
 .amber { background: var(--amber-soft); color: var(--amber); }
 .red { background: var(--red-solid); color: #fff; }
 .large { height: 28px; padding: 0 11px; font-size: var(--fs-sm); }
 
-/* --- meter -------------------------------------------------------------------------------------------------------- */
-.meter { position: relative; display: block; height: 6px; width: 100%; border-radius: var(--r-full); background: var(--track); overflow: hidden; }
-.meterThick { height: 8px; }
-.fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; transition: width .5s var(--ease); }
-.mark { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--text-2); opacity: .75; }
+/* --- meter: crisp segments (a 5px block, a 2px gap) instead of a soft pill ------------------------------------------- */
+.meter { position: relative; display: block; height: 8px; width: 100%; }
+.meterThick { height: 10px; }
+.meter::before, .fill {
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+}
+.meter::before { content: ""; position: absolute; inset: 0; background: var(--track); }
+.fill { position: absolute; inset: 0 auto 0 0; transition: width .5s var(--ease); }
+.mark { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--text-2); opacity: .8; }
 .markRed { background: var(--red-solid); opacity: 1; }
 .good { background: var(--good); }
 .warn { background: var(--warn); }
@@ -59,10 +63,9 @@
   border-radius: var(--r-sm);
   background: var(--bg-elev);
   color: var(--text);
-  font-size: var(--fs-sm);
-  font-weight: 550;
+  font: 550 var(--fs-sm) var(--font-mono);
+  letter-spacing: -.01em;
   white-space: nowrap;
-  box-shadow: var(--shadow-sm);
   transition: background .15s, border-color .15s, color .15s;
 }
 .btn:hover { background: var(--bg-hover); }
