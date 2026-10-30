@@ -11,7 +11,10 @@ const VIEWS = ["minimal", "compact", "lean", "standard", "full"];
 const LEVEL_REPS = [10, 30, 60, 75, 95];
 const STORE = "cust-codex-status.web";
 const fmtTok = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(Math.round(n || 0)));
-const THEMES = [["auto", "Auto (system)"], ["light", "Light"], ["dark", "Dark"], ["paper", "Light · Paper"], ["nord", "Dark · Nord"], ["dracula", "Dark · Dracula"]];
+// The same theme ids as the React pages. A fresh browser starts on Orchid ("dark"); "auto" follows the system (Orchid or Cream).
+const THEMES = [["auto", "Auto (system)"], ["dark", "Orchid"], ["light", "Cream"], ["sunset", "Sunset"], ["phosphor", "Phosphor"], ["ink", "Ink & Paper"]];
+const RETIRED_THEMES = { paper: "light", nord: "dark", dracula: "sunset" };      // ids from earlier palettes, still in saved settings or bookmarks
+const themeFrom = (v) => (THEMES.some(([k]) => k === v) ? v : Object.hasOwn(RETIRED_THEMES, v) ? RETIRED_THEMES[v] : null);
 const nextTheme = (t) => THEMES[(THEMES.findIndex(([k]) => k === t) + 1) % THEMES.length][0];
 
 // --- small helpers ------------------------------------------------------------------------------------------------
@@ -25,13 +28,13 @@ function flagsFor(level) {
   return { minimal: level < 20, compact: level < 45, lean: level < 70, noPrompts: level < 90, showArc: level >= 90, verbose: level >= 90 };
 }
 
-// Saved per-browser settings, then ?level=0-100 and ?theme=light|dark|auto from the address (handy for bookmarks).
+// Saved per-browser settings, then ?level=0-100 and ?theme=auto|dark|light|sunset|phosphor|ink from the address (handy for bookmarks).
 function load() {
   let v = {};
   try { v = JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { /* no storage: defaults */ }
   const q = new URLSearchParams(location.search);
   if (q.has("level") && !isNaN(+q.get("level"))) v.level = Math.max(0, Math.min(100, +q.get("level")));
-  if (THEMES.some(([k]) => k === q.get("theme"))) v.theme = q.get("theme");
+  if (themeFrom(q.get("theme"))) v.theme = themeFrom(q.get("theme"));
   return v;
 }
 
@@ -143,6 +146,59 @@ function Bar({ pct, small, levels }) {
     <span class="bar-fill" style=${{ width: `${v}%` }}></span>
     ${levels ? html`<i class="mark mark-amber" style=${{ left: `${levels[0]}%` }}></i><i class="mark mark-red" style=${{ left: `${levels[1]}%` }}></i>` : ""}
   </span>`;
+}
+
+// --- the six Codex metric tiles (the same numbers as the terminal's tile strip; Python computes them in metrics.codex_metrics) ---------
+
+const parseTok = (t) => { const m = /^([\d.]+)([kM]?)$/.exec(String(t || "").trim()); return m ? parseFloat(m[1]) * (m[2] === "M" ? 1e6 : m[2] === "k" ? 1e3 : 1) : 0; };
+const pctOrDash = (v) => (v === null || v === undefined ? "–" : `${v}%`);
+const healthKind = { OK: "good", AMBER: "warn", RED: "bad" };
+
+// -> [{ key, label, value, unit, kind, pct, segs, spark, note }]; `kind` picks the bar colour (good / warn / bad mean health, orchid / coral are just measures)
+function tilesFor(snap) {
+  const m = snap.totals.metrics;
+  if (!m) return [];
+  const t = snap.totals, live = snap.sessions.filter((s) => s.active);
+  const eff = m.effort || [];
+  const hd = m.headroom_pct;
+  const hk = healthKind[m.headroom_level] || (hd === null || hd === undefined ? "good" : hd < 5 ? "bad" : hd < 15 ? "warn" : "good");
+  const rl = (snap.usage.limits || []).reduce((a, l) => (!a || l.pct > a.pct ? l : a), null);
+  const perThread = live.filter((s) => s.turns).map((s) => parseTok(s.tokens) / s.turns);
+  const top = Math.max(1, ...perThread);
+  return [
+    { key: "threads", label: "Threads", value: String(m.threads), unit: "live", segs: ["OK", "AMBER", "RED"].map((k) => [healthKind[k], t.health[k] || 0]),
+      note: ["OK", "AMBER", "RED"].filter((k) => t.health[k]).map((k) => `${t.health[k]} ${k}`).join(" · ") || "no live threads" },
+    { key: "cache", label: "Cache hit", value: pctOrDash(m.cache_pct), unit: m.cache_pct === null ? "" : "of input", kind: "orchid", pct: m.cache_pct,
+      note: m.cache_pct === null ? "–" : `cached ${fmtTok(m.cached)} of ${fmtTok(m.cached + m.fresh_input)}` },
+    { key: "reasoning", label: "Reasoning", value: pctOrDash(m.reasoning_pct), unit: m.reasoning_pct === null ? "" : "of output", kind: "coral", pct: m.reasoning_pct,
+      note: eff.length ? `effort ${eff[0][0]}${eff.length > 1 || eff[0][1] > 1 ? ` ×${eff[0][1]}` : ""}${eff.slice(1, 3).map(([e, n]) => ` · ${e} ×${n}`).join("")}` : m.reasoning_pct === null ? "–" : "effort not recorded" },
+    { key: "headroom", label: "Context headroom", value: pctOrDash(hd), unit: hd === null || hd === undefined ? "" : "left", kind: hk, pct: hd, note: m.headroom_chat || "–" },
+    { key: "tokens", label: "Tokens / turn", value: m.tokens_per_turn ? fmtTok(m.tokens_per_turn) : "–", unit: m.tokens_per_turn ? "avg" : "",
+      spark: perThread.map((v) => Math.max(8, Math.round((100 * v) / top))), note: m.turns ? `${m.turns} turns · ${fmtTok(m.tokens)} tokens` : "–" },
+    { key: "limit", label: "Rate limit", value: rl ? `${rl.pct}%` : "–", unit: rl ? rl.label.split(/[ ·_]/)[0] : "", kind: rl ? tone(rl.pct) : "good", pct: rl ? rl.pct : null,
+      note: rl ? `resets in ${rl.resets}` : "no limit data yet" },
+  ];
+}
+
+function Tile({ x }) {
+  const bar = x.segs
+    ? html`<span class="tbar tbar-segs">${x.segs.map(([k, n]) => (n ? html`<i class=${`seg-${k}`} style=${{ flex: n }}></i>` : ""))}${x.segs.every(([, n]) => !n) ? html`<i class="seg-none"></i>` : ""}</span>`
+    : x.spark
+      ? html`<span class="tbar tbar-spark" aria-hidden="true">${x.spark.slice(0, 16).map((h) => html`<i style=${{ height: `${h}%` }}></i>`)}${x.spark.length ? "" : html`<i class="seg-none"></i>`}</span>`
+      : html`<span class=${`tbar tbar-${x.kind}`} role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${x.pct ?? 0}><i style=${{ width: `${Math.max(x.pct ? 1 : 0, Math.min(100, x.pct || 0))}%` }}></i></span>`;
+  return html`<div class="tile" data-tile=${x.key}>
+    <div class="tile-label">${x.label}</div>
+    <div class="tile-value"><b>${x.value}</b>${x.unit ? html`<span>${x.unit}</span>` : ""}</div>
+    ${bar}
+    <div class="tile-note">${x.note}</div>
+  </div>`;
+}
+
+// approval policy / model / surface of the live chats: "approval on-request 2 · never 1"
+function MixLine({ m }) {
+  const groups = [["approval", m.approval], ["model", m.models], ["surface", m.surfaces]].filter(([, v]) => v && v.length);
+  if (!groups.length) return "";
+  return html`<p class="mix">${groups.map(([k, v]) => html`<span><em>${k}</em> ${v.slice(0, 3).map(([a, n]) => `${a} ${n}`).join(" · ")}${v.length > 3 ? ` · +${v.length - 3} more` : ""}</span>`)}</p>`;
 }
 
 function State({ s }) {
@@ -433,7 +489,7 @@ function Usage({ u }) {
       <${Bar} pct=${l.pct} />
       <b class="limit-pct">${l.pct}%</b>
       <span class="dim">resets in ${l.resets}</span>
-      ${l.binding ? html`<span class="pill pill-warn">binding</span>` : ""}
+      ${l.binding ? html`<span class="pill pill-busiest">busiest</span>` : ""}
     </div>`)}
     ${u.pools.map((p) => html`<div class="limit"><span class="limit-label">credit pool</span><span class="limit-text">${p}</span></div>`)}
     <div class=${`cached ${u.stale ? "is-stale" : ""}`}>cached ${u.cached_ago} ago${u.stale ? " · STALE: send a message in any Codex session to refresh" : ""}</div>
@@ -526,7 +582,7 @@ const KEYS_ALL = [
   ["Esc / b", "back to the list (or clear the filter)"], ["+ / −", "more / less detail"], ["1 – 5", "jump to a view"],
   ["a", "archived chats on/off"], ["c", "compact rows on/off"], ["p", "prompts on/off"], ["v", "subagents (latest 3) on/off"],
   ["s", "all subagents on/off"], ["t", "archived prompt line on/off"], ["e", "expand / collapse all rows"], ["u", "account details on/off"],
-  ["r", "refresh now"], ["/", "filter chats by title, folder or id"], ["d", "next theme (auto, light, dark, paper, nord, dracula)"], ["g / G", "first / last chat"], ["?", "this list"],
+  ["r", "refresh now"], ["/", "filter chats by title, folder or id"], ["d", "next theme (auto, orchid, cream, sunset, phosphor, ink)"], ["g / G", "first / last chat"], ["?", "this list"],
 ];
 
 function Help({ onClose }) {
@@ -548,7 +604,7 @@ function App() {
   const [level, setLevel] = useState(saved.level ?? null);
   const [over, setOver] = useState({});                       // toggles that flip the level's flags until the level changes
   const [extra, setExtra] = useState({ arcPrompt: saved.arcPrompt ?? true, allSubagents: false, account: false });
-  const [theme, setTheme] = useState(THEMES.some(([k]) => k === saved.theme) ? saved.theme : "auto");
+  const [theme, setTheme] = useState(themeFrom(saved.theme) || "dark");
   const [cur, setCur] = useState(null);
   const [locked, setLocked] = useState(false);
   const [open, setOpen] = useState({});
@@ -742,6 +798,10 @@ function App() {
         <div class="clock dim">${snap.clock}</div>
         ${extra.account ? html`<dl class="account">${snap.account.fields.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>` : ""}
       </section>
+
+      ${t.metrics ? html`<section class=${`tiles ${f.compact ? "tiles-chips" : ""}`} aria-label="Codex metrics">
+        ${tilesFor(snap).map((x) => html`<${Tile} x=${x} />`)}
+      </section>${f.minimal ? "" : html`<${MixLine} m=${t.metrics} />`}` : ""}
 
       ${f.minimal ? "" : html`<${MachineBand} system=${snap.system || []} onPick=${showChat} onShowEnded=${showEnded} />`}
 
