@@ -8,7 +8,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--bg-elev);
-  font-size: var(--fs-sm);
+  font: var(--fs-sm) var(--font-mono);
   color: var(--text-2);
   transition: border-color .15s, color .15s;
 }
@@ -30,7 +30,7 @@
   transform-origin: top right;
 }
 .menu:focus { outline: none; }
-.menuTitle { padding: 4px 8px 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); cursor: default; }
+.menuTitle { padding: 4px 8px 6px; font: 600 var(--fs-xs) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); cursor: default; }
 .triggerHint { color: var(--text-3); font-weight: 600; }
 .triggerHint::after { content: ":"; }
 @keyframes pop { from { opacity: 0; transform: scale(.97) translateY(-3px); } }
@@ -40,7 +40,7 @@
 .text b { font-size: var(--fs-sm); font-weight: 600; }
 .text small { font-size: var(--fs-xs); color: var(--text-3); }
 .check { color: var(--accent); }
-.swatch { display: inline-flex; flex: none; width: 18px; height: 18px; border-radius: 50%; overflow: hidden; border: 1px solid var(--border-strong); }
+.swatch { display: inline-flex; flex: none; width: 24px; height: 16px; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--border-strong); }
 .swatch i { flex: 1; }
 
 @media (max-width: 640px) {

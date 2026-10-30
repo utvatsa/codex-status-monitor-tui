@@ -1,12 +1,12 @@
 // The top of the page: who you are, four headline numbers, usage limits and anything that needs attention.
 import { useMemo, useState, type ReactNode } from "react";
-import type { Snapshot, WindowOffer } from "../types";
+import type { Session, Snapshot, WindowOffer } from "../types";
 import { attentionItems, type AttentionKind } from "../lib/attention";
-import { agentCards, agentTotals } from "../lib/agents";
 import { compact, plural } from "../lib/format";
+import { limitLevel, mixText, tileFacts } from "../lib/tiles";
 import { parseSize } from "../lib/settings";
 import { Card } from "./ui/Card";
-import { Icon, type IconName } from "./ui/Icon";
+import { Icon } from "./ui/Icon";
 import { Badge, Button, CopyButton, Meter, cx } from "./ui/primitives";
 import { WindowEditor } from "./WindowControl";
 import s from "./Overview.module.css";
@@ -32,59 +32,102 @@ export function AccountLine({ snapshot, showAccount, onToggle }: { snapshot: Sna
   );
 }
 
-function Tile({ icon, label, value, children, tone, onOpen, openLabel }: { icon: IconName; label: string; value: ReactNode; children?: ReactNode; tone?: "warn" | "bad"; onOpen?: () => void; openLabel?: string }) {
+type Level = "good" | "warn" | "bad";
+
+/** A readout tile: index and caption in mono caps, a big numeral, a segmented bar and a note line. */
+function Tile({ n, label, value, unit, bar, level, children, onOpen, openLabel, tip }: { n: string; label: string; value: ReactNode; unit?: string; bar?: ReactNode; level?: Level; children?: ReactNode; onOpen?: () => void; openLabel?: string; tip?: string }) {
   return (
-    <div className={cx(s.tile, tone && s[tone], onOpen && s.tileBtn)}
+    <div className={cx(s.tile, level && level !== "good" && s[level], onOpen && s.tileBtn)} title={tip}
       {...(onOpen ? { role: "button", tabIndex: 0, "aria-label": openLabel, onClick: onOpen,
         onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } } : {})}>
-      <div className={s.tileHead}><Icon name={icon} size={15} /><span>{label}</span></div>
-      <div className={cx(s.kpi, "tnum")}>{value}</div>
+      <div className={s.tileHead}><span>{label}</span><i aria-hidden="true">{n}</i></div>
+      <div className={cx(s.kpi, "tnum")}>{value}{unit && <small>{unit}</small>}</div>
+      {bar && <div className={s.tileBar}>{bar}</div>}
       {children && <div className={s.tileFoot}>{children}</div>}
     </div>
   );
 }
 
-export function KpiTiles({ snapshot, showArc, onOpenAgents }: { snapshot: Snapshot; showArc: boolean; onOpenAgents?: () => void }) {
+/** Proportional segmented bar for counts and shares (threads by health, tokens by kind). */
+function Split({ parts, label }: { parts: [string, number, string][]; label: string }) {
+  const total = parts.reduce((x, p) => x + p[1], 0);
+  return (
+    <span className={s.split} role="img" aria-label={`${label}: ${parts.map(([k, v]) => `${v} ${k}`).join(", ")}`}>
+      {total === 0 ? <i className={s.splitEmpty} /> : parts.filter((p) => p[1] > 0).map(([k, v, c]) => <i key={k} title={`${v} ${k}`} style={{ flexGrow: v, background: c }} />)}
+    </span>
+  );
+}
+
+export function KpiTiles({ snapshot, onOpenAgents }: { snapshot: Snapshot; showArc?: boolean; onOpenAgents?: () => void }) {
   const t = snapshot.totals;
-  const busiest = [...snapshot.usage.limits].sort((a, b) => b.pct - a.pct)[0];
+  const f = tileFacts(snapshot);
+  const m = f.m;
   const attention = t.health.AMBER + t.health.RED;
-  const agents = agentTotals(snapshot.sessions);
-  const mains = agentCards(snapshot.sessions);
+  const lim = f.limit;
   return (
     <div className={s.tiles}>
-      <Tile icon="chat" label="Live chats" value={t.live} tone={t.health.RED ? "bad" : attention ? "warn" : undefined}>
+      <Tile n="01" label="Threads" value={t.live} level={t.health.RED ? "bad" : attention ? "warn" : undefined} onOpen={onOpenAgents} openLabel="Open the Agents view"
+        tip="A thread is one live Codex conversation (CLI session, IDE chat or desktop thread). Click to see them as agents."
+        bar={<Split label="Health of the live threads" parts={[["OK", t.health.OK, "var(--good)"], ["AMBER", t.health.AMBER, "var(--warn)"], ["RED", t.health.RED, "var(--bad)"]]} />}>
         <span className={s.healthRow}>
-          <Badge level="OK" /> <b className="tnum">{t.health.OK}</b>
-          <Badge level="AMBER" /> <b className="tnum">{t.health.AMBER}</b>
-          <Badge level="RED" /> <b className="tnum">{t.health.RED}</b>
+          {(["OK", "AMBER", "RED"] as const).map((k) => (
+            <span key={k} className={s.hm} data-h={k} aria-label={`${t.health[k]} ${k}`}><i aria-hidden="true" /><b className="tnum">{t.health[k]}</b>{k.toLowerCase()}</span>
+          ))}
         </span>
+        <span>{plural(f.subagents.total, "subagent")} · {f.subagents.running} running</span>
       </Tile>
-      <Tile icon="plug" label="Agents" value={<>{agents.main + agents.running}<small>running</small></>} onOpen={onOpenAgents} openLabel="Open the Agents view">
-        <span title="Every live chat is one main agent; subagents are extra agents a chat started (Task, Plan, Explore ...). Running now = main agents + running subagents.">
-          {agents.main} main · {plural(agents.running, "subagent")} running
+      <Tile n="02" label="Cache hit" value={m.cache_pct ?? "–"} unit={m.cache_pct === null ? undefined : "%"}
+        tip="Share of input tokens served from the prompt cache. Higher means cheaper, faster turns."
+        bar={m.cache_pct === null ? undefined : <Meter pct={m.cache_pct} label="Prompt cache hit rate" tone="good" />}>
+        <span>{f.cacheText}</span>
+      </Tile>
+      <Tile n="03" label="Reasoning" value={m.reasoning_pct ?? "–"} unit={m.reasoning_pct === null ? undefined : "%"}
+        tip="Share of output tokens spent on reasoning rather than the visible answer. Set by the reasoning effort."
+        bar={m.reasoning_pct === null ? undefined : <Meter pct={m.reasoning_pct} label="Reasoning share of output" tone="good" />}>
+        <span>{f.reasoningText}</span>
+        <span>{m.effort.length ? `effort ${mixText(m.effort)}` : "effort not reported"}</span>
+      </Tile>
+      <Tile n="04" label="Headroom" value={f.headroom ?? "–"} unit={f.headroom === null ? undefined : "%"} level={f.headroomLevel}
+        tip="Context window left in the tightest live thread. Codex compacts or loses detail when it runs out."
+        bar={f.headroom === null ? undefined : <Meter pct={f.headroom} label="Context headroom of the tightest thread" tone={f.headroomLevel} />}>
+        <span>{f.headroomChat ? `left in ${f.headroomChat}` : "no live thread"}</span>
+      </Tile>
+      <Tile n="05" label="Tokens / turn" value={m.tokens_per_turn === null ? "–" : compact(m.tokens_per_turn)}
+        tip="Average tokens per turn over the live threads: uncached input + cached input + output."
+        bar={<Split label="Tokens by kind" parts={[["fresh input", m.fresh_input, "var(--accent)"], ["cached", m.cached, "var(--nav)"], ["output", m.output, "var(--text-2)"]]} />}>
+        <span>{plural(m.turns, "turn")} · {compact(m.tokens)} tokens</span>
+      </Tile>
+      <Tile n="06" label="Rate limit" value={lim ? lim.pct : "–"} unit={lim ? "%" : undefined} level={lim ? limitLevel(lim.pct) : undefined}
+        tip="The busiest of the 5-hour and weekly rate-limit windows."
+        bar={lim ? <Meter pct={lim.pct} label={lim.label} /> : undefined}>
+        <span>{lim ? `${lim.label} · resets in ${lim.resets}` : "no rate-limit data"}</span>
+      </Tile>
+    </div>
+  );
+}
+
+/** Where the live threads run, which model they use and their approval policy: one quiet row of mono tags. */
+export function SurfaceRow({ snapshot }: { snapshot: Snapshot }) {
+  const live = snapshot.sessions.filter((x) => x.active);
+  if (!live.length) return null;
+  const count = (key: (x: Session) => string) => {
+    const mp = new Map<string, number>();
+    for (const x of live) mp.set(key(x), (mp.get(key(x)) ?? 0) + 1);
+    return [...mp.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  };
+  const groups: [string, [string, number][]][] = [
+    ["surface", count((x) => x.running_in)],
+    ["model", count((x) => (!x.model || x.model === "-" ? "no model yet" : x.model))],
+    ["approval", snapshot.totals.metrics?.approval?.length ? snapshot.totals.metrics.approval : count((x) => x.approval ?? "default")],
+  ];
+  return (
+    <div className={s.chips} aria-label="Surface, model and approval policy of the live threads">
+      {groups.map(([name, items]) => (
+        <span key={name} className={s.chipGroup}>
+          <em>{name}</em>
+          {items.map(([k, n]) => <span key={k} className={s.chip}>{k}<b className="tnum">{n}</b></span>)}
         </span>
-        {mains.length > 0 && (
-          <ul className={s.agentList}>
-            {mains.slice(0, 3).map((c) => (
-              <li key={c.session.sid} data-state={c.rows.main.state} title={`${c.rows.main.name}: ${c.rows.main.state}`}>
-                <i /><span>{c.rows.main.name}</span>
-                {c.rows.running > 0 && <em>+{c.rows.running} running</em>}
-              </li>
-            ))}
-            {mains.length > 3 && <li className={s.agentMore}>+{mains.length - 3} more chats</li>}
-          </ul>
-        )}
-      </Tile>
-      <Tile icon="cpu" label="Memory held" value={<>{t.mem_mb.toLocaleString()}<small>MB</small></>}>
-        <span>by {plural(t.live, "live process", "live processes")}</span>
-      </Tile>
-      <Tile icon="coin" label="Live tokens" value={compact(t.live_tokens)}>
-        <span>{showArc ? `+ ${compact(t.arc_tokens)} across ${plural(t.archived, "archived chat")}` : "input + cached + output, live chats (Codex has no price table)"}</span>
-      </Tile>
-      <Tile icon="gauge" label="Busiest limit" value={busiest ? <>{busiest.pct}<small>%</small></> : "–"}
-        tone={busiest && busiest.pct >= 85 ? "bad" : busiest && busiest.pct >= 60 ? "warn" : undefined}>
-        {busiest ? <><Meter pct={busiest.pct} label={busiest.label} /><span>{busiest.label} · resets in {busiest.resets}</span></> : <span>no rate-limit data</span>}
-      </Tile>
+      ))}
     </div>
   );
 }

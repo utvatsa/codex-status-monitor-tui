@@ -8,6 +8,7 @@ import json
 import threading
 import time
 
+from ..metrics import codex_metrics
 from .. import config
 from ..footprint import REGENERABLE, advice, footprint, mb
 from ..health import ctx_levels, ctx_pct, health, system_alerts, tips, waiting_for, warnings_for
@@ -69,7 +70,7 @@ def _session(r):
         model=short_model(r["model"]), ctx_pct=pct, ctx=fmt(r["ctx"]), window=fmt(r["window"]),
         maybe_1m=r["window"] == 200_000 and r.get("window_source", "guess") == "guess" and pct >= ctx_levels(r)[0],
         turns=t["turns"], inp=fmt(t["input"]), out=fmt(t["output"]), cache_r=fmt(t["cache_read"]), reasoning=fmt(t.get("reasoning", 0)),
-        tokens=fmt(_total(t)), cost=("$%.2f" % r["cost"]) if r.get("cost") else "-", branch=r.get("branch"), entry=r.get("entry"),
+        tokens=fmt(_total(t)), cost=("$%.2f" % r["cost"]) if r.get("cost") else "-", branch=r.get("branch"), approval=r.get("approval"), entry=r.get("entry"),
         mem_mb=r["mem_mb"], pid=r["pid"], folder=r["cwd"] or "-", running_in=running_in(r), source=r["source"],
         last=ago(r["last_active"]), up=r["up"] if r["active"] else None,
         first_prompt=r["first_prompt"], latest_prompt=r["latest_prompt"], resume=resume_cmd(r), clean=clean_cmd(r),
@@ -104,7 +105,7 @@ def snapshot(data, opts, source="tui", with_arc=False):
                      fields=[[k, str(v) if v is not None else "-"] for k, v in account_fields(acct)] if acct else []),
         usage=_limits(usage),
         warnings=warnings_for(rows, u.get("limits") or []), system=_machine(rows, sessions),
-        totals=dict(live=len(act), mem_mb=sum(r["mem_mb"] or 0 for r in act), live_cost=cost(act), live_tokens=toks(act), archived=len(arc), arc_cost=cost(arc), arc_tokens=toks(arc),
+        totals=dict(metrics=codex_metrics(rows), live=len(act), mem_mb=sum(r["mem_mb"] or 0 for r in act), live_cost=cost(act), live_tokens=toks(act), archived=len(arc), arc_cost=cost(arc), arc_tokens=toks(arc),
                     health={k: sum(1 for r in act if health(r)[0] == k) for k in ("OK", "AMBER", "RED")}),
         sessions=sessions,
         view=dict(level=getattr(opts, "level", DEFAULT_LEVEL), levels=[[lo, nm] for lo, nm in LEVELS], reps=LEVEL_REPS,

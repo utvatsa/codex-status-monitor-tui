@@ -69,6 +69,14 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(s["totals"]["live"], 1)
         self.assertEqual(s["totals"]["health"], {"OK": 1, "AMBER": 0, "RED": 0})
 
+    def test_totals_carry_the_codex_metrics_behind_the_tiles(self):
+        m = snapshot(data(), make_options(level=75))["totals"]["metrics"]
+        json.dumps(m)
+        for k in ("threads", "turns", "tokens", "cache_pct", "cached", "fresh_input", "reasoning_pct", "reasoning", "output",
+                  "tokens_per_turn", "headroom_pct", "headroom_chat", "approval", "effort"):
+            self.assertIn(k, m)
+        self.assertEqual(m["threads"], 1)
+
     def test_subagents_carry_their_code(self):
         sub = dict(id="acd8d62eb3e440f19", type="Plan", desc="Review the spec", model="gpt-5.5", tokens=dict(input=10, output=2500, cache_read=0, cache_write=0, turns=7), ctx=5000,
                    mtime=time.time(), state="running")
@@ -169,6 +177,13 @@ class ServerTests(unittest.TestCase):
             code, h, _ = self.req("GET", "/static/" + f)
             self.assertEqual(code, 200, f)
             self.assertEqual(h["Cache-Control"], "public, max-age=31536000, immutable" if f.startswith("assets/") else "no-store")
+
+    def test_bundles_carry_the_orchid_terminal_themes(self):
+        css = b"".join(self.req("GET", "/static/" + f)[2] for f in FILES if f.startswith("assets/") and f.endswith(".css"))
+        for theme in (b'data-theme=sunset', b'data-theme=phosphor', b'data-theme=ink'):
+            self.assertIn(theme, css.replace(b'"', b""))
+        for retired in (b"dracula", b"nord", b"#0891b2"):          # the old navy / cyan look is gone
+            self.assertNotIn(retired, css)
 
     def test_page_references_only_built_files(self):
         for path in ("/", "/plain", "/react2"):

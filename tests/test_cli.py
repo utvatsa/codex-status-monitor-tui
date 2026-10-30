@@ -56,7 +56,7 @@ class EndToEndTests(unittest.TestCase):
             for level in ("0", "50", "75", "100"):
                 p = run("--level", level, home=d)
                 self.assertEqual(p.returncode, 0, p.stderr)
-                self.assertIn("CODEX STATUS", p.stdout)
+                self.assertIn("CODEX ▸ status", p.stdout)
 
     def test_json_lists_archived_sessions_from_the_fake_home(self):
         with tempfile.TemporaryDirectory() as d:
@@ -65,13 +65,18 @@ class EndToEndTests(unittest.TestCase):
         self.assertEqual(data["account"]["email"], "test@example.com")
         self.assertNotIn("SECRET", json.dumps(data))                                  # auth.json tokens never reach the output
         self.assertEqual(len(data["sessions"]), 2)
+        for key in ("account", "usage", "sessions", "metrics"):
+            self.assertIn(key, data)
+        self.assertEqual(data["metrics"]["threads"], 0)                              # archived only: nothing live
+        self.assertIsNone(data["metrics"]["cache_pct"])
+        self.assertEqual(data["metrics"]["rate_limit"]["label"], "5-hour session")   # the fake rollouts carry 12% / 3% windows
         self.assertEqual(data["sessions"][0]["tokens"]["turns"], 2)
 
     def test_full_report_shows_health_for_archived_chat(self):
         with tempfile.TemporaryDirectory() as d:
             helpers.make_home(d, sessions=1)
             out = run("--level", "95", home=d).stdout
-        self.assertIn("ARCHIVED / ENDED", out)
+        self.assertIn("archived threads", out)
         self.assertIn("Chat number 0", out)
         self.assertIn("[OK]", out)
 
@@ -83,7 +88,7 @@ class EndToEndTests(unittest.TestCase):
     def test_default_without_a_terminal_falls_back_to_the_static_report(self):
         p = run()                                   # pytest/subprocess has no tty: full-screen is the default but cannot start
         self.assertEqual(p.returncode, 0, p.stderr)
-        self.assertIn("CODEX STATUS", p.stdout)
+        self.assertIn("CODEX ▸ status", p.stdout)
 
     def test_no_tui_flag_and_archived_prompt_flag(self):
         a = cli.parse(["--no-tui", "--no-arc-prompt"])

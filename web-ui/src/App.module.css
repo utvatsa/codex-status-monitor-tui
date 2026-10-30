@@ -27,7 +27,7 @@
 .hidden { padding: var(--sp-3) var(--sp-5); border-top: 1px solid var(--border); color: var(--amber); font-size: var(--fs-sm); }
 .footnote { color: var(--text-3); font-size: var(--fs-xs); }
 .banner { padding: 10px var(--sp-5); text-align: center; font-size: var(--fs-sm); background: var(--amber-soft); color: var(--amber); border-bottom: 1px solid var(--border); }
-code { font-size: .92em; padding: 1px 5px; border-radius: 5px; background: var(--bg-sunken); }
+code { font-size: .92em; padding: 1px 5px; border-radius: var(--r-sm); background: var(--bg-sunken); }
 
 /* waiting states */
 .down { max-width: 520px; margin: 20vh auto 0; padding: 0 var(--sp-4); text-align: center; display: grid; gap: var(--sp-3); justify-items: center; color: var(--text-2); }
@@ -35,7 +35,7 @@ code { font-size: .92em; padding: 1px 5px; border-radius: 5px; background: var(-
 .skeleton { max-width: 1320px; margin: 0 auto; padding: var(--sp-6) var(--sp-5); display: grid; gap: var(--sp-5); }
 .skeleton div div, .skBar, .skBlock { border-radius: var(--r-lg); background: linear-gradient(90deg, var(--bg-sunken), var(--bg-hover), var(--bg-sunken)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 .skBar { height: 32px; width: 40%; }
-.skTiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
+.skTiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--sp-3); }
 .skTiles div { height: 108px; }
 .skBlock { height: 180px; }
 @keyframes shimmer { to { background-position: -200% 0; } }

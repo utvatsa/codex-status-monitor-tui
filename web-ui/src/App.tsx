@@ -2,7 +2,7 @@
 // reducer (state/ui.ts). This component only derives what to show from the two and wires keys and clicks to actions.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { attentionItems } from "./lib/attention";
-import { AccountLine, AttentionCard, KpiTiles, UsageCard } from "./components/Overview";
+import { AccountLine, AttentionCard, KpiTiles, SurfaceRow, UsageCard } from "./components/Overview";
 import { MachineBand } from "./components/MachineBand";
 import { AgentsView, ViewSwitch } from "./components/AgentsView";
 import { KeyBar } from "./components/KeyBar";
@@ -194,7 +194,8 @@ export default function App() {
 
       <main className={s.main}>
         <AccountLine snapshot={snapshot} showAccount={ui.showAccount} onToggle={() => dispatch({ type: "toggle", key: "showAccount" })} />
-        <KpiTiles snapshot={snapshot} showArc={f.showArc} onOpenAgents={() => setMainView("agents")} />
+        <KpiTiles snapshot={snapshot} onOpenAgents={() => setMainView("agents")} />
+        <SurfaceRow snapshot={snapshot} />
 
         {!f.minimal && <MachineBand system={snapshot.system ?? []} onPick={showChat} onShowEnded={showEnded} />}
 
@@ -282,7 +283,7 @@ function Waiting({ connection }: { connection: string }) {
   return (
     <div className={s.skeleton} aria-busy="true" aria-label="Loading">
       <div className={s.skBar} />
-      <div className={s.skTiles}>{[0, 1, 2, 3].map((i) => <div key={i} />)}</div>
+      <div className={s.skTiles}>{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} />)}</div>
       <div className={s.skBlock} />
       <div className={s.skBlock} />
     </div>

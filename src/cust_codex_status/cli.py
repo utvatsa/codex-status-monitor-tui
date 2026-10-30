@@ -168,6 +168,7 @@ def main(argv=None):
     if args.set_window or args.clear_window or args.set_context or args.show_alerts:
         return alert_settings(args)
     C.on = sys.stdout.isatty() and not args.no_color and not args.json and "NO_COLOR" not in os.environ
+    C.use_terminal()
 
     has_tty = sys.stdout.isatty() and sys.stdin.isatty()
     wants_tui = args.tui or not (args.no_tui or args.json or args.watch or args.interactive or args.no_color)
@@ -188,7 +189,7 @@ def main(argv=None):
         sys.exit("--tui needs a real terminal")
 
     def once(prev=None):
-        """Print one report. In watch mode, lines that differ from the previous refresh get a yellow bar."""
+        """Print one report. In watch mode, lines that differ from the previous refresh get a coral bar."""
         if args.json:
             print(json.dumps(report.raw(args), indent=2, default=str))
             return ""
@@ -196,7 +197,7 @@ def main(argv=None):
         if prev is None:
             print(text)
         else:
-            print("\n".join(C.w("1;33", "▌") + ln[1:] if ln.startswith("  ") and plain(ln) not in prev else ln for ln in text.split("\n")))
+            print("\n".join(C.t("secondary", "▌", True) + ln[1:] if ln.startswith("  ") and plain(ln) not in prev else ln for ln in text.split("\n")))
         return text
 
     if args.watch:
@@ -206,7 +207,7 @@ def main(argv=None):
                 print("\033[2J\033[H", end="")
                 text = once(prev)
                 prev = {plain(ln) for ln in text.split("\n")}
-                print(C.w("90", f"\nrefreshing every {args.watch}s, Ctrl-C to quit"), flush=True)
+                print(C.t("dim", f"\nrefreshing every {args.watch}s, Ctrl-C to quit"), flush=True)
                 time.sleep(args.watch)
         except KeyboardInterrupt:
             return

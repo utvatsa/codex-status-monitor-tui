@@ -4,8 +4,22 @@
 - **Read-only.** No API calls, no model tokens, no writes except the clipboard (`pbcopy`) when asked.
 - **Standard library only.** Nothing to install beyond Python 3.9+. (The optional web page is a prebuilt React bundle committed in the
   package; Node is needed only to change it, in `web-ui/`.)
-- **Colour means one thing.** Card frame = group (live cyan, archived grey). Health = a separate OK/AMBER/RED badge with the reason.
-  (An earlier version coloured frames by state, so an 89%-context chat looked green.)
+- **Colour means one thing.** Card frame = group (live orchid, archived grey). Health = a separate OK/AMBER/RED badge with the reason, and
+  green / amber / red appear nowhere else (process state uses orchid and coral dots). (An earlier version coloured frames by state, so an
+  89%-context chat looked green.)
+- **A look of its own.** The Codex edition does not share the Claude edition's cyan or rounded boxes: heavy `┏━┓` frames, `▍CODEX ▸ title`
+  titles, pill badges, thin `━┄` gauges, and a palette of ink, orchid (primary), coral (secondary) and off-white. Roles live in one table,
+  `util.PALETTE` (a 256-colour code and an 8-colour fallback each), and code asks for a role (`C.t("primary", ...)`), never a number, so the
+  curses view (`C.index`) and the static output share it. 256 colours are used only when `TERM` or `COLORTERM` says so, or curses reports them.
+
+## The metric tiles
+`metrics.codex_metrics(rows, limits)` computes the headline numbers once (threads, cache hit, reasoning share, tokens per turn, tightest
+context headroom, approval / effort / model / surface mix, busiest rate limit); `tiles.py` draws them for the terminal and the web bridge sends
+the same dict as `totals.metrics`, so the two views cannot disagree. Cache hit is `cache_read / (input + cache_read)` because Codex counts
+cached tokens inside input and `data.sum_tokens` splits them out; reasoning tokens are already inside output. Every value is `None` when
+there is nothing to base it on, and the tile shows a dash. The strip is pure text with a fixed shape per width (`columns_for`): 6, 3 or 2
+boxes per row, chips below 39 columns and at levels under 45. There are deliberately no memory or agent-count tiles: Codex chats share one
+app-server process, so per-chat memory is not meaningful, and the subagent list stays on the card.
 
 ## Structure
 ```

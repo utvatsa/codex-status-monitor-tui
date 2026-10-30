@@ -472,7 +472,7 @@ def row_for(path, lv, archived, mtime, with_subs, db=None, names=None, kids=None
                 host=(lv or {}).get("host"), session_id=sid, active=bool(lv), archived_by_ide=sid in archived,
                 name=(lv or {}).get("name"), title=title, source=ENTRY_LABEL.get(entry) or (lv or {}).get("host") or entry or "?", entry=entry,
                 state=state, waiting=waiting, pid=(lv or {}).get("pid"), mem_mb=(lv or {}).get("mem_mb"), cpu=(lv or {}).get("cpu"),
-                up=(lv or {}).get("up"), version=s["version"] or t.get("cli_version"), model=model,
+                up=(lv or {}).get("up"), version=s["version"] or t.get("cli_version"), model=model, approval=s["approval"],
                 effort=s["effort"] or t.get("reasoning_effort") or toml_top("model_reasoning_effort"),
                 models=s["models"], ctx=s["ctx"], window=window, tokens=s["tokens"], cost=None, cwd=home_rel(s["cwd"] or t.get("cwd") or ""),
                 last_active=mtime, first_prompt=s["first_prompt"] or t.get("first_user_message") or None,

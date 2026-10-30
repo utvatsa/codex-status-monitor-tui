@@ -9,11 +9,10 @@
   border-bottom: 1px solid var(--border);
 }
 .inner { max-width: 1320px; height: 100%; margin: 0 auto; padding: 0 var(--sp-5); display: flex; align-items: center; gap: var(--sp-3); }
-.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
-.brand img { border-radius: 6px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font: 650 14px var(--font-mono); letter-spacing: .02em; text-transform: lowercase; }
+.brand img { border-radius: 3px; }
 .readonly {
-  font-size: var(--fs-xs);
-  font-weight: 600;
+  font: 600 var(--fs-xs) var(--font-mono);
   color: var(--text-3);
   border: 1px solid var(--border);
   border-radius: var(--r-full);

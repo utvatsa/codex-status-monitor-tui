@@ -6,7 +6,7 @@
 // waitNNN (sleep NNN ms), or js:<expression> (prints the result). It also prints whether anything sticks out
 // sideways (horizontal overflow), the usual bug at phone width. Chrome's own --window-size cannot go below
 // ~500px, which is why a phone is emulated with Emulation.setDeviceMetricsOverride instead.
-// Example: node scripts/screenshot.mjs "http://127.0.0.1:8765/?theme=nord" /tmp/phone.png 390 1 Down Enter
+// Example: node scripts/screenshot.mjs "http://127.0.0.1:8765/?theme=phosphor" /tmp/phone.png 390 1 Down Enter
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +14,7 @@ import { join } from "node:path";
 
 const [url, out, width = "1400", mobile = "0", ...keys] = process.argv.slice(2);
 const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const dir = mkdtempSync(join(tmpdir(), "ccs-chrome-"));          // throwaway profile, removed at the end
+const dir = mkdtempSync(join(tmpdir(), "codex-status-webui-chrome-"));          // throwaway profile, removed at the end
 const port = 9300 + (process.pid % 500);
 const chrome = spawn(CHROME,
   ["--headless=new", "--disable-gpu", `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, "--hide-scrollbars", "about:blank"], { stdio: "ignore" });

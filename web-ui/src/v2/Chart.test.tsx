@@ -69,8 +69,9 @@ describe("charts in the app", () => {
     render(<App />);
     const s = snapshot();
     act(() => FakeEventSource.last().push(s));
-    expect(screen.getByRole("img", { name: /Memory held: now 200 MB, 1 samples/ })).toBeInTheDocument();
-    act(() => FakeEventSource.last().push({ ...s, generated: s.generated + 5, totals: { ...s.totals, mem_mb: 250 } }));
-    expect(screen.getByRole("img", { name: /Memory held: now 250 MB, 2 samples over 5s/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Tokens per turn: now 11.7k, 1 samples/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Cache hit rate: now 87%, 1 samples/ })).toBeInTheDocument();
+    act(() => FakeEventSource.last().push({ ...s, generated: s.generated + 5, totals: { ...s.totals, metrics: { ...s.totals.metrics, tokens_per_turn: 20000 } } }));
+    expect(screen.getByRole("img", { name: /Tokens per turn: now 20.0k, 2 samples over 5s/ })).toBeInTheDocument();
   });
 });

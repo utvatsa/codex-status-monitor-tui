@@ -34,6 +34,16 @@ export interface SystemAlert {
   reclaim_chats?: string[];      // disk: the sids of those chats
 }
 
+/** Codex headline numbers over the live chats (src/cust_codex_status/metrics.py); null when there is nothing to base them on. */
+export interface CodexMetrics {
+  threads: number; turns: number; tokens: number;
+  cache_pct: number | null; cached: number; fresh_input: number;      // cached / (uncached + cached) input
+  reasoning_pct: number | null; reasoning: number; output: number;    // reasoning / output tokens
+  tokens_per_turn: number | null;
+  headroom_pct: number | null; headroom_chat: string | null;          // the tightest live chat's remaining context
+  approval: [string, number][]; effort: [string, number][];            // live chats per approval policy / reasoning effort
+}
+
 export interface Session {
   sid: string;
   active: boolean;
@@ -70,6 +80,7 @@ export interface Session {
   tokens: string;                // input + cached + output, "43.0k"
   cost: string;                  // always "-": Codex has no price table
   branch: string | null;         // git branch from the Codex state db
+  approval: string | null;       // approval policy (never | on-request | untrusted ...)
   entry: string | null;          // cli | exec | desktop | vscode | acp | appserver
   mem_mb: number | null;
   pid: number | null;
@@ -100,7 +111,7 @@ export interface Snapshot {
   usage: { limits: Limit[]; pools: string[]; cached_ago: string | null; stale: boolean };
   warnings: string[];
   system: SystemAlert[];
-  totals: { live: number; mem_mb: number; live_cost: number; live_tokens: number; archived: number; arc_cost: number; arc_tokens: number; health: Record<Health, number> };
+  totals: { metrics: CodexMetrics; live: number; mem_mb: number; live_cost: number; live_tokens: number; archived: number; arc_cost: number; arc_tokens: number; health: Record<Health, number> };
   sessions: Session[];
   view: {
     level: number;

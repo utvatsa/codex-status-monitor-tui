@@ -3,15 +3,24 @@ import { useEffect, useState } from "react";
 import { storage } from "../lib/storage";
 
 export const THEMES = [
-  { id: "auto", label: "Auto", hint: "follows your system", swatch: ["#ffffff", "#0e1116"] },
-  { id: "light", label: "Light", hint: "crisp and neutral", swatch: ["#ffffff", "#a21caf"] },
-  { id: "dark", label: "Dark", hint: "low glare", swatch: ["#161b22", "#e879f9"] },
-  { id: "paper", label: "Light · Paper", hint: "warm off-white", swatch: ["#fbf8f2", "#0f766e"] },
-  { id: "nord", label: "Dark · Nord", hint: "arctic blue-grey", swatch: ["#3b4252", "#88c0d0"] },
-  { id: "dracula", label: "Dark · Dracula", hint: "deep purple", swatch: ["#282a36", "#bd93f9"] },
+  { id: "auto", label: "Auto", hint: "Orchid or Cream, by your system", swatch: ["#faf5ee", "#0d0a14"] },
+  { id: "dark", label: "Orchid", hint: "ink violet, orchid and coral", swatch: ["#0d0a14", "#e879f9", "#ff7a59"] },
+  { id: "light", label: "Cream", hint: "warm paper, plum ink", swatch: ["#faf5ee", "#a21caf", "#d9481f"] },
+  { id: "sunset", label: "Sunset", hint: "plum night, coral glow", swatch: ["#1a0c18", "#ff7a59", "#ffb36b"] },
+  { id: "phosphor", label: "Phosphor", hint: "green on black, amber keys", swatch: ["#050905", "#5cff7a", "#ffc83d"] },
+  { id: "ink", label: "Ink & Paper", hint: "monochrome print, high contrast", swatch: ["#f3f1ec", "#0b0b0b", "#a21caf"] },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
+
+/** Ids from the earlier palettes still found in saved settings or old bookmarks, mapped to their nearest new theme. */
+const RETIRED: Record<string, ThemeId> = { paper: "light", nord: "dark", dracula: "sunset" };
+
+/** A theme id from outside (storage, the address) turned into a current id, or null when it is unknown. */
+export function themeFrom(v: unknown): ThemeId | null {
+  if (isTheme(v)) return v;
+  return typeof v === "string" && Object.hasOwn(RETIRED, v) ? RETIRED[v] : null;
+}
 
 export const isTheme = (v: unknown): v is ThemeId => THEMES.some((t) => t.id === v);
 
@@ -22,9 +31,7 @@ export function nextTheme(t: ThemeId): ThemeId {
 
 export function useTheme(initial?: string | null): [ThemeId, (t: ThemeId) => void] {
   const [theme, setTheme] = useState<ThemeId>(() => {
-    if (isTheme(initial)) return initial;
-    const saved = storage.get("theme");
-    return isTheme(saved) ? saved : "auto";
+    return themeFrom(initial) ?? themeFrom(storage.get("theme")) ?? "dark";      // a fresh browser starts on Orchid
   });
 
   useEffect(() => {

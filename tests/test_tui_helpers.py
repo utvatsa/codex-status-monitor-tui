@@ -28,6 +28,23 @@ class TuiHelperTests(unittest.TestCase):
         self.assertEqual(tui.parse_ansi("\x1b[90mdim\x1b[0m")[0], ("dim", None, None, False, True))
         self.assertEqual(tui.parse_ansi("\x1b[1;97;41mX")[0][1:3], (7, 1))
 
+    def test_parse_ansi_reads_256_colours_and_bright_colours(self):
+        segs = tui.parse_ansi("\x1b[1;38;5;233;48;5;171m OK \x1b[0m\x1b[38;5;245mdim\x1b[0m\x1b[95mhi")
+        self.assertEqual(segs[0], (" OK ", 233, 171, True, False))
+        self.assertEqual(segs[1], ("dim", 245, None, False, False))
+        self.assertEqual(segs[2], ("hi", 5, None, True, False))             # bright magenta = magenta, bold
+
+    def test_items_are_found_in_coloured_output_too(self):
+        old = C.depth
+        try:
+            for depth in (256, 8):
+                C.on, C.depth = True, depth
+                for kw in ({}, {"compact": True}):
+                    lines, items = draw(**kw)
+                    self.assertEqual(len(tui.item_spans(lines)), 2, f"{depth} {kw}")
+        finally:
+            C.on, C.depth = False, old
+
     def test_cards_become_items_with_resume_commands(self):
         spans = tui.item_spans(LINES)
         self.assertEqual(len(spans), 2)
