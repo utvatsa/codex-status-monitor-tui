@@ -62,20 +62,86 @@ def home_rel(p):
     return (p or "").replace(HOME, "~")
 
 
+# The Codex palette: near-black ink, orchid primary, coral secondary, off-white text. Each role is (256-colour code, 8-colour fallback).
+# ok / amber / red mean health and nothing else. A dark-terminal palette; `text` and `dim` darken when COLORFGBG says the background is light.
+PALETTE = {
+    "primary": (171, 35),      # orchid: frames' titles, resume commands, the cursor, bars that are not health
+    "secondary": (209, 95),    # coral: markers, selection, numbers
+    "frame": (133, 35),        # muted orchid: box edges
+    "text": (253, 39),         # off-white
+    "dim": (245, 90),          # secondary text
+    "faint": (240, 90),        # archived frames, empty bar tracks
+    "ink": (233, 30),          # near-black: text on a coloured block
+    "ok": (78, 32),
+    "amber": (214, 33),
+    "red": (203, 31),
+}
+LIGHT_BG = {"text": 236, "dim": 243, "faint": 247}
+
+
+def detect_depth(env=None):
+    """256 when the terminal says it can show them, else the 8 ANSI colours."""
+    env = os.environ if env is None else env
+    if env.get("COLORTERM", "").lower() in ("truecolor", "24bit") or "256" in env.get("TERM", ""):
+        return 256
+    return 8
+
+
+def _light_background(env=None):
+    env = os.environ if env is None else env
+    return env.get("COLORFGBG", "").rsplit(";", 1)[-1] in ("7", "15")
+
+
 class C:  # ANSI colours, disabled when not a tty / --no-color
     on = False
+    depth = 256         # 256 or 8: how many colours the palette may use (set from the terminal by `use_terminal`)
+    light = False
     margin = 0          # columns the full-screen view keeps for its selection gutter
+
+    @classmethod
+    def use_terminal(cls, depth=None):
+        cls.depth = depth or detect_depth()
+        cls.light = _light_background()
 
     @classmethod
     def w(cls, code, s):
         return f"\033[{code}m{s}\033[0m" if cls.on else s
 
+    @classmethod
+    def code(cls, name, bg=False):
+        """SGR parameters of a palette role as a foreground (or background) colour."""
+        big, small = PALETTE[name]
+        if cls.depth >= 256:
+            if cls.light and name in LIGHT_BG:
+                big = LIGHT_BG[name]
+            return f"{48 if bg else 38};5;{big}"
+        return str(small + 10) if bg and small != 39 else str(small) if not bg else "49"
 
-def bar(pct, width=14):
+    @classmethod
+    def index(cls, name):
+        """The colour number of a palette role for curses (-1 = the terminal's default colour)."""
+        big, small = PALETTE[name]
+        if cls.depth >= 256:
+            return LIGHT_BG.get(name, big) if cls.light else big
+        return -1 if small == 39 else small % 8
+
+    @classmethod
+    def t(cls, name, s, bold=False):
+        """Text in a palette role (bold on request)."""
+        return cls.w(("1;" if bold else "") + cls.code(name), s)
+
+    @classmethod
+    def block(cls, name, s):
+        """Bold near-black text on a solid block of a palette role (badges, the cursor, key caps)."""
+        return cls.w("1;" + cls.code("ink") + ";" + cls.code(name, bg=True), s)
+
+
+def bar(pct, width=14, tone=None):
+    """A thin gauge. Without `tone` it is a health gauge (green, amber, red as it fills); with one it is just a measure."""
     pct = max(0, min(100, pct or 0))
-    n = round(width * pct / 100)
-    col = "32" if pct < 60 else "33" if pct < 85 else "31"
-    return C.w(col, "█" * n) + C.w("90", "░" * (width - n))
+    n = max(1 if pct else 0, round(width * pct / 100))      # a non-zero value always shows at least one cell
+    name = tone or ("ok" if pct < 60 else "amber" if pct < 85 else "red")
+    return (C.t(name, "━" * n) if n else "") + (C.t("faint", "┄" * (width - n)) if width > n else "")
 
 
 ANSI = re.compile(r"\033\[[0-9;]*m")

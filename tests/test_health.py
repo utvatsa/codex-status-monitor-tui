@@ -1,5 +1,6 @@
 import time
 import unittest
+from unittest import mock
 
 import helpers
 from cust_codex_status import health as H
@@ -53,7 +54,8 @@ class HealthTests(unittest.TestCase):
 
     def test_warnings_include_limits_and_live_chats_only(self):
         rows = [helpers.row(name="needs-me", **ctx(90)), helpers.row(name="fine"), helpers.row(name="old", active=False, **ctx(99))]
-        w = H.warnings_for(rows, [dict(kind="weekly_all", percent=81, resets_at="2999-01-01T00:00:00+00:00"), dict(kind="session", percent=5)])
+        with mock.patch.object(H.shutil, "disk_usage", return_value=mock.Mock(free=900 * 10**9)):     # plenty of disk: this test is about limits and chats
+            w = H.warnings_for(rows, [dict(kind="weekly_all", percent=81, resets_at="2999-01-01T00:00:00+00:00"), dict(kind="session", percent=5)])
         self.assertEqual(len(w), 2)
         self.assertTrue(w[0].startswith("weekly all limit at 81%"))
         self.assertIn("needs-me", w[1])

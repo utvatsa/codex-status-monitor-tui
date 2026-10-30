@@ -1,5 +1,6 @@
 """Glue between the data layer and the renderer: one call each for the text report and the raw JSON."""
 from .data import account, collect
+from .metrics import codex_metrics
 from .render import render_ui
 
 
@@ -24,4 +25,5 @@ def text(opts):
 
 def raw(opts):
     rows, _, acct, usage = fetch(opts)
-    return dict(account=acct, usage=usage.get("utilization"), usage_fetched_at_ms=usage.get("fetchedAtMs"), sessions=rows)
+    limits = (usage.get("utilization") or {}).get("limits") or []
+    return dict(account=acct, usage=usage.get("utilization"), usage_fetched_at_ms=usage.get("fetchedAtMs"), metrics=codex_metrics(rows, limits), sessions=rows)

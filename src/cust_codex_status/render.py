@@ -3,47 +3,64 @@ import time
 
 from . import config
 from .health import ctx_pct, health, tips, warnings_for
+from .tiles import tile_lines
 from .util import ANSI, C, ago, bar, clip, fmt, home_rel, pad, running_in, short_model, term_width, until, vlen
 from .views import level_name
 
 
-def panel(title, right, lines, width, accent="35"):
-    """Rounded box: coloured title on the left of the top edge, dim note on the right, lines padded to fit."""
+def styled_title(title, accent="secondary"):
+    """`CODEX ▸ usage limits` -> bold orchid CODEX, dim arrow, bold text; `3 ▸ chat name` -> a coral number first."""
+    head, sep, rest = title.partition(" ▸ ")
+    if not sep:
+        return C.t("text", title, bold=True)
+    return C.t("primary" if head == "CODEX" else accent, head, bold=True) + C.t("dim", " ▸ ") + C.t("text", rest, bold=True)
+
+
+def panel(title, right, lines, width, tone="frame", mark="secondary"):
+    """Heavy box: `┏━▍CODEX ▸ title ━━━ note ━┓`. A coral bar marks the title, the note sits dim on the right, lines are padded to fit."""
     inner = width - 4
-    t = " " + C.w("1;" + accent, title) + " " if title else ""
-    rt = " " + C.w("90", right) + " " if right else ""
-    fill = max(1, width - 2 - vlen(t) - vlen(rt) - 1)
-    out = [C.w(accent, "╭─") + t + C.w(accent, "─" * fill) + rt + C.w(accent, "╮")]
+    left = C.t(tone, "┏━") + C.t(mark, "▍") + styled_title(title, mark) + " "
+    rt = " " + C.t("dim", right) + " " if right else ""
+    fill = max(1, width - vlen(left) - vlen(rt) - 1 - (1 if rt else 0))
+    out = [left + C.t(tone, "━" * fill) + rt + C.t(tone, ("━" if rt else "") + "┓")]
     for ln in lines:
         if vlen(ln) > inner:                       # last-resort guard: never break the frame
             ln = ANSI.sub("", ln)[: inner - 1] + "…"
-        out.append(C.w(accent, "│") + " " + pad(ln, inner) + " " + C.w(accent, "│"))
-    out.append(C.w(accent, "╰" + "─" * (width - 2) + "╯"))
+        out.append(C.t(tone, "┃") + " " + pad(ln, inner) + " " + C.t(tone, "┃"))
+    out.append(C.t(tone, "┗" + "━" * (width - 2) + "┛"))
     return out
 
 
-DOT = {"idle": ("●", "32"), "busy": ("●", "33"), "running?": ("◐", "33"), "ended": ("○", "90")}
+# a chat's process state: not health, so the dots use the palette (orchid = idle, coral = busy), never green/amber/red
+DOT = {"idle": ("●", "primary"), "busy": ("◆", "secondary"), "running?": ("◐", "secondary"), "ended": ("○", "dim")}
 
 
 def state_dot(r):
-    ch, col = DOT.get(r["state"], ("○", "90"))
-    return C.w(col, ch + " " + r["state"] + ("*" if r["waiting"] else ""))
+    ch, tone = DOT.get(r["state"], ("○", "dim"))
+    return C.t(tone, ch + " " + r["state"] + ("*" if r["waiting"] else ""))
 
 
-HCOL = {"OK": "32", "AMBER": "33", "RED": "31"}
-
-
-HBADGE = {"OK": "1;30;42", "AMBER": "1;30;43", "RED": "1;97;41"}
+HCOL = {"OK": "ok", "AMBER": "amber", "RED": "red"}
 
 
 def badge_small(level):
-    return C.w(HBADGE[level], f" {level} ") if C.on else f"[{level}]"
+    """`[OK]` without colour; with colour a pill: half-block ends in the level's colour around ink text on a solid block."""
+    if not C.on:
+        return f"[{level}]"
+    return C.t(HCOL[level], "▐") + C.block(HCOL[level], level) + C.t(HCOL[level], "▌")
 
 
 def badge_big(level):
-    """Three rows, 9 columns wide: a solid coloured block with the level in the middle."""
-    rows = [" " * 9, f"{level:^9}", " " * 9]
-    return [C.w(HBADGE[level], t) for t in rows] if C.on else ["┌───────┐", f"│{level:^7}│", "└───────┘"]
+    """Three rows, 9 columns wide: a rounded block in the level's colour with the level in the middle (a heavy outline without colour)."""
+    if not C.on:
+        return ["┏━━━━━━━┓", f"┃{level:^7}┃", "┗━━━━━━━┛"]
+    t = HCOL[level]
+    return [C.t(t, "▗" + "▄" * 7 + "▖"), C.t(t, "▐") + C.block(t, f"{level:^7}") + C.t(t, "▌"), C.t(t, "▝" + "▀" * 7 + "▘")]
+
+
+def bar_pct(r, width=8):
+    pct = ctx_pct(r)
+    return f"{bar(pct, width)} {pct:>3}%"
 
 
 def ctx_cell(r, width=12):
@@ -86,23 +103,43 @@ def detail_lines(r, width, indent="     "):
     stats = tok_stats(r)
     if r["active"] and r["mem_mb"]:
         stats += f" · {r['mem_mb']}MB"
-    out = [C.w("90", "folder ") + home_rel(r["cwd"] or "-"),
-           C.w("90", "id     ") + r["session_id"] + (C.w("90", f"   pid {r['pid']}") if r["pid"] else ""),
-           C.w("90", "stats  ") + stats,
-           C.w("90", "first  ") + clip(r["first_prompt"], width - 8),
-           C.w("90", "latest ") + clip(r["latest_prompt"], width - 8),
-           C.w("90", "resume ") + C.w("35", resume_cmd(r))]
+    out = [C.t("dim", "folder ") + home_rel(r["cwd"] or "-"),
+           C.t("dim", "id     ") + r["session_id"] + (C.t("dim", f"   pid {r['pid']}") if r["pid"] else ""),
+           C.t("dim", "stats  ") + stats,
+           C.t("dim", "first  ") + clip(r["first_prompt"], width - 8),
+           C.t("dim", "latest ") + clip(r["latest_prompt"], width - 8),
+           *resume_lines(r, width)]
     if r["active"]:
-        out.append(C.w("90", "       ") + C.w("90", f"live in {running_in(r)}: close it there first, or `codex fork {r['session_id']}`"))
-    out.append(C.w("90", "clean  ") + clean_cmd(r))
-    out += [C.w("33", "▲ " + tp) for tp in tips(r)]
+        out.append(C.t("dim", "       ") + C.t("dim", f"live in {running_in(r)}: close it there first, or `codex fork {r['session_id']}`"))
+    out.append(C.t("dim", "clean  ") + clean_cmd(r))
+    out += [C.t("amber", "▲ " + tp) for tp in tips(r)]
     return [indent + ln for ln in out]
+
+
+def wrap_parts(text, width):
+    """Split a ` · `-separated line into lines no wider than `width`, breaking only between parts."""
+    out, cur = [], ""
+    for part in text.split(" · "):
+        if cur and len(cur) + 3 + len(part) > width:
+            out.append(cur)
+            cur = ""
+        cur = cur + " · " + part if cur else part
+    return out + [cur] if cur else out
+
+
+def resume_lines(r, inner):
+    """`resume cd <folder> && codex resume <id>`; on two lines (`&&` ends the first) when one would not fit."""
+    cmd = resume_cmd(r)
+    if len(cmd) + 7 <= inner or " && " not in cmd:
+        return [C.t("dim", "resume ") + C.t("primary", cmd)]
+    first, second = cmd.split(" && ", 1)
+    return [C.t("dim", "resume ") + C.t("primary", first + " &&"), C.t("dim", "       ") + C.t("primary", second)]
 
 
 def render_ui(rows, acct, usage, args, hidden=0, items=None):
     """The whole report as text. `items`, when given, is filled with one dict per selectable chat in display order
     (the TUI selects by these; `args.expand` = a session id whose collapsed row should show its details)."""
-    W = max(78, min(term_width(), 118))
+    W = max(60, min(term_width(), 118))
     expand = getattr(args, "expand", None)
     arc_prompt = getattr(args, "arc_prompt", True)
     items = items if items is not None else []
@@ -117,16 +154,22 @@ def render_ui(rows, acct, usage, args, hidden=0, items=None):
     arc = [r for r in rows if not r["active"]]
     toks = lambda rs: sum(tok_total(r) for r in rs)
 
-    # header
-    plan = f"{acct.get('plan') or '?'} · {acct.get('tier') or '?'}"
-    head = [C.w("1", acct.get("email") or "?") + C.w("90", "   " + plan),
-            C.w("90", f"{len(act)} live · {sum(r['mem_mb'] or 0 for r in act)}MB · {fmt(toks(act))} tokens live"
-                + (f" · {len(arc)} archived · {fmt(toks(arc))} tokens" if args.show_arc else ""))]
-    if args.account:
-        head += [C.w("90", f"{k:17}") + str(v) for k, v in account_fields(acct)]
+    # masthead: title pill and rule, who and what is live, the six metric tiles, the mix line, health counts
     cnt = {k: sum(1 for r in act if health(r)[0] == k) for k in HCOL}
-    head.append(C.w("90", "live health  ") + "   ".join(f"{badge_small(k)} {cnt[k]}" for k in HCOL))
-    out += panel("CODEX STATUS", time.strftime("%a %d %b %Y %H:%M:%S") + "  read-only", head, W, "35")
+    stamp = time.strftime("%a %d %b %Y %H:%M:%S") + "  read-only"
+    pill = C.block("primary", " CODEX ") + C.t("dim", "▸ ") + C.t("text", "status", bold=True) + " "
+    out.append(pill + C.t("frame", "━" * max(1, W - vlen(pill) - len(stamp) - 2)) + " " + C.t("dim", stamp))
+    plan = f"{acct.get('plan') or '?'} · {acct.get('tier') or '?'}"
+    who = "  " + C.t("text", acct.get("email") or "?", bold=True) + C.t("dim", "   " + plan)
+    live = C.t("dim", f"{len(act)} live · {sum(r['mem_mb'] or 0 for r in act)}MB · {fmt(toks(act))} tokens live"
+               + (f" · {len(arc)} archived · {fmt(toks(arc))} tokens" if args.show_arc else ""))
+    out += [who + "   " + live] if vlen(who) + 3 + vlen(live) <= W else [who, "  " + live]
+    if args.account:
+        out += ["  " + C.t("dim", f"{k:17}") + str(v) for k, v in account_fields(acct)]
+    tl, metrics = tile_lines(rows, limits, cnt, W - 2, args.minimal or args.compact)
+    out += ["  " + ln for ln in tl]
+    out.append("  " + C.t("dim", "live health  ") + "   ".join(f"{badge_small(k)} {cnt[k]}" for k in HCOL))
+    out.append("")
 
     # usage
     ul = []
@@ -137,21 +180,21 @@ def render_ui(rows, acct, usage, args, hidden=0, items=None):
             label = l.get("label") or {"session": "5-hour session", "weekly_all": "weekly · all models", "weekly_scoped": "weekly"}.get(l["kind"], l["kind"])
             label += f" · {scope}" if scope else ""
             pct = l.get("percent") or 0
-            ul.append(f"{pad(label, 20)} {bar(pct, 24)} {pct:>3}%   resets {until(l.get('resets_at'))}"
-                      + (C.w("33", "   ◂ binding") if l.get("is_active") else ""))
+            ul.append(f"{pad(label, 20)} {bar(pct, 24 if inner >= 90 else 12)} {pct:>3}%   resets {until(l.get('resets_at'))}"
+                      + (C.t("secondary", "   ◂ busiest") if l.get("is_active") else ""))
         for k, v in u.items():
             if isinstance(v, dict) and v.get("limit_dollars") and k != "limits":
                 ul.append(f"{pad('credit pool', 20)} ${v.get('used_dollars')} of ${v.get('limit_dollars')} used · {k} · resets {until(v.get('resets_at'))}")
         stale = age and age > config.alert_rules()["time"]["limits_stale_min"] * 60
-        ul.append(C.w("90", f"as of the last Codex turn, {ago(time.time() - age)} ago" + (" · STALE, run a prompt in Codex for live numbers" if stale else "")))
+        ul.append(C.t("dim", f"as of the last Codex turn, {ago(time.time() - age)} ago" + (" · STALE, run a prompt in Codex for live numbers" if stale else "")))
     else:
         ul.append("no usage data yet; limits are read from the latest Codex turn")
     if not args.minimal:
-        out += panel("USAGE LIMITS", "", ul, W, "34")
+        out += panel("CODEX ▸ usage limits", "", ul, W)
 
     warn = warnings_for(rows, limits)
     if warn and not args.minimal:
-        out += panel("ATTENTION", "", [C.w("33", "▲ " + w) for w in warn], W, "33")
+        out += panel("CODEX ▸ attention", "", [C.t("amber", "▲ " + w) for w in warn], W, "amber", "amber")
 
     def card(i, r):
         sb = r["subagents"]
@@ -159,42 +202,46 @@ def render_ui(rows, acct, usage, args, hidden=0, items=None):
         t = r["tokens"]
         ttl = clip((r["name"] + " · " if r["name"] and r["active"] else "") + r["title"], inner - 40)
         hl, why = health(r)
-        state = (f"{pad(state_dot(r), 10)} {pad(short_model(r['model'])[:12], 12)} {ctx_cell(r)}   "
-                 + C.w("90", f"last {ago(r['last_active'])}" + (f" · up {r['up']}" if r["active"] and r["up"] else "")))
+        narrow = inner < 92                              # too tight for the big badge: small badge, long lines wrap
+        last = f"last {ago(r['last_active'])}" + (f" · up {r['up']}" if r["active"] and r["up"] else "")
+        state = f"{pad(state_dot(r), 10)} {pad(short_model(r['model'])[:12], 12)} {ctx_cell(r)}" + ("" if narrow else "   " + C.t("dim", last))
         stats = tok_stats(r)
         if sb:
             stats += f" · subagents {nr}/{len(sb)}"
         if r["active"] and r["mem_mb"]:
             stats += f" · {r['mem_mb']}MB"
-        reason = C.w(HCOL[hl], " · ".join(why)) if why else C.w("90", "nothing needs attention")
-        if args.lean:
-            lines = [f"{badge_small(hl)} {state}", C.w("90", stats)] + ([reason] if why else [])
+        reason = C.t(HCOL[hl], " · ".join(why)) if why else C.t("dim", "nothing needs attention")
+        if narrow:
+            stats = last + " · " + stats
+        if args.lean or narrow:
+            lines = [f"{badge_small(hl)} {state}"] + [C.t("dim", ln) for ln in wrap_parts(stats, inner)] + ([reason] if why else [])
         else:
             b = badge_big(hl)
-            lines = [f"{b[0]}  {state}", f"{b[1]}  {reason}", f"{b[2]}  " + C.w("90", stats)]
-            lines.append(C.w("90", "folder ") + home_rel(r["cwd"] or "-"))
-            lines.append(C.w("90", "id     ") + r["session_id"] + (C.w("90", f"   pid {r['pid']}") if r["pid"] else ""))
+            lines = [f"{b[0]}  {state}", f"{b[1]}  {reason}", f"{b[2]}  " + C.t("dim", stats)]
+        if not args.lean:
+            lines.append(C.t("dim", "folder ") + home_rel(r["cwd"] or "-"))
+            lines.append(C.t("dim", "id     ") + r["session_id"] + (C.t("dim", f"   pid {r['pid']}") if r["pid"] else ""))
         if not args.no_prompts and not args.lean:
-            lines.append(C.w("90", "first  ") + clip(r["first_prompt"], inner - 8))
-            lines.append(C.w("90", "latest ") + clip(r["latest_prompt"], inner - 8))
+            lines.append(C.t("dim", "first  ") + clip(r["first_prompt"], inner - 8))
+            lines.append(C.t("dim", "latest ") + clip(r["latest_prompt"], inner - 8))
         go = f"cd {home_rel(r['cwd'])} && " if r["cwd"] else ""
-        lines.append(C.w("90", "resume ") + C.w("35", f"{go}codex resume {r['session_id']}"))
+        lines += resume_lines(r, inner)
         if not args.lean:
             if r["active"]:
-                lines.append(C.w("90", "       ") + C.w("90", f"live in {running_in(r)}: close it there first, or `codex fork {r['session_id']}`"))
-            lines.append(C.w("90", "clean  ") + f"{go}codex")
+                lines.append(C.t("dim", "       ") + C.t("dim", f"live in {running_in(r)}: close it there first, or `codex fork {r['session_id']}`"))
+            lines.append(C.t("dim", "clean  ") + f"{go}codex")
             for tp in tips(r):
-                lines.append(C.w("33", "▲ " + tp))
+                lines.append(C.t("amber", "▲ " + tp))
         if (args.subagents or args.verbose) and sb:
-            lines.append(C.w("90", "subagents" + ("" if args.subagents else " (latest 3, -s for all)")))
+            lines.append(C.t("dim", "subagents" + ("" if args.subagents else " (latest 3, -s for all)")))
             for a in sb[: (None if args.subagents else 3)]:
-                lines.append(f"  {C.w('33', '◐') if a['state'] == 'running' else C.w('90', '✓')} {pad(a['type'][:16], 16)} "
-                             f"{clip(a['desc'], inner - 52)}  {C.w('90', short_model(a['model'])[:10] + ' ' + fmt(a['ctx']) + ' ctx ' + ago(a['mtime']))}")
-        return panel(f"{i}  {ttl}", running_in(r), lines, W, "35" if r["active"] else "90")
+                lines.append(f"  {C.t('secondary', '◐') if a['state'] == 'running' else C.t('dim', '✓')} {pad(a['type'][:16], 16)} "
+                             f"{clip(a['desc'], inner - 52)}  {C.t('dim', short_model(a['model'])[:10] + ' ' + fmt(a['ctx']) + ' ctx ' + ago(a['mtime']))}")
+        return panel(f"{i} ▸ {ttl}", running_in(r), lines, W, "frame" if r["active"] else "faint", "secondary" if r["active"] else "faint")
 
     if not args.minimal:
-        out.append("  " + badge_small("OK") + " nothing to do   " + badge_small("AMBER") + " context ≥85%, waiting on approval, or idle >1h   "
-                   + badge_small("RED") + " context ≥95%")
+        legend = ["  " + badge_small("OK") + " nothing to do   ", badge_small("AMBER") + " context ≥85%, waiting on approval, or idle >1h   ", badge_small("RED") + " context ≥95%"]
+        out += ["".join(legend)] if W >= 108 else ["  " + legend[0].strip() + "   " + legend[2], "  " + legend[1].strip()]
     index = {}
     n = 0
     if args.show_live:
@@ -204,22 +251,28 @@ def render_ui(rows, acct, usage, args, hidden=0, items=None):
                 n += 1
                 index[r["session_id"]] = n
                 note(n, r)
-                ln.append(f"{pad(str(n), 2, 'r')} {pad(badge_small(health(r)[0]), 7, 'r')} {pad(state_dot(r), 10)} {pad(clip(r['name'] or r['title'], 24), 24)} "
-                          f"{pad(running_in(r)[:14], 14)} {pad(short_model(r['model'])[:10], 10)} {ctx_cell(r, 8)} {pad(ago(r['last_active']), 4, 'r')}")
+                head = f"{pad(str(n), 2, 'r')} {pad(badge_small(health(r)[0]), 7, 'r')} {pad(state_dot(r), 10)} "
+                tail = f"{ctx_cell(r, 8) if inner >= 96 else bar_pct(r, 8)} {pad(ago(r['last_active']), 4, 'r')}"
+                if inner >= 66:
+                    tail = f"{pad(short_model(r['model'])[:10], 10)} " + tail
+                if inner >= 96:
+                    tail = f"{pad(running_in(r)[:14], 14)} " + tail
+                room = min(24, max(8, inner - vlen(head) - vlen(tail) - 1))
+                ln.append(f"{head}{pad(clip(r['name'] or r['title'], room), room)} {tail}")
                 if r["session_id"] == expand:
                     ln += detail_lines(r, inner - 4, "    ")
-            out += panel("LIVE SESSIONS", "minimal" if args.minimal else "compact", ln, W, "35")
+            out += panel("CODEX ▸ live threads", "minimal" if args.minimal else "compact", ln, W)
         elif act:
-            out.append(C.w("1;35", "LIVE SESSIONS") + C.w("90", "  a process is running; idle ones still hold memory"))
+            out.append(C.t("secondary", "▍") + styled_title("CODEX ▸ live threads") + (C.t("dim", "  a process is running; idle ones still hold memory") if W >= 80 else ""))
             for r in act:
                 n += 1
                 index[r["session_id"]] = n
                 note(n, r)
                 if n > 1:
-                    out.append(C.w("90", "╌" * W))
+                    out.append(C.t("faint", "┄" * W))
                 out += card(n, r)
         else:
-            out += panel("LIVE SESSIONS", "", ["none running"], W, "35")
+            out += panel("CODEX ▸ live threads", "", ["none running"], W)
     if args.show_arc:
         if arc:
             ln = []
@@ -228,24 +281,27 @@ def render_ui(rows, acct, usage, args, hidden=0, items=None):
                 index[r["session_id"]] = n
                 note(n, r)
                 ahl, awhy = health(r)
-                ln.append(f"{pad(str(n), 3, 'r')} {pad(badge_small(ahl), 10)} {pad(clip(r['title'], inner - 64), max(10, inner - 64))} "
-                          f"{pad(r['source'][:9], 9)} {pad(short_model(r['model'])[:10], 10)} {bar(ctx_pct(r), 6)} "
-                          f"{pad(fmt(tok_total(r)), 7, 'r')} {pad(ago(r['last_active']), 4, 'r')}")
+                head = f"{pad(str(n), 3, 'r')} {pad(badge_small(ahl), 10)} "
+                tail = f"{bar(ctx_pct(r), 6)} {pad(fmt(tok_total(r)), 7, 'r')} {pad(ago(r['last_active']), 4, 'r')}"
+                if inner >= 84:
+                    tail = f"{pad(r['source'][:9], 9)} {pad(short_model(r['model'])[:10], 10)} " + tail
+                room = max(10, inner - vlen(head) - vlen(tail) - 1)
+                ln.append(f"{head}{pad(clip(r['title'], room), room)} {tail}")
                 if arc_prompt and r["session_id"] != expand:
-                    ln.append("     " + C.w("90", "latest ") + clip(r["latest_prompt"], inner - 12))
+                    ln.append("     " + C.t("dim", "latest ") + clip(r["latest_prompt"], inner - 12))
                 if r["session_id"] == expand:
                     ln += detail_lines(r, inner - 4)
                 else:
-                    ln.append(C.w("90", "     " + resume_cmd(r)))
+                    ln.append(C.t("dim", "     " + resume_cmd(r)))
                 if awhy:
-                    ln.append("     " + C.w(HCOL[ahl], "▲ " + " · ".join(awhy)))
+                    ln.append("     " + C.t(HCOL[ahl], "▲ " + " · ".join(awhy)))
             out.append("")
-            out += panel("ARCHIVED / ENDED", f"last {args.days}d · newest {len(arc)} shown", ln, W, "90")
+            out += panel("CODEX ▸ archived threads", f"last {args.days}d · newest {len(arc)} shown", ln, W, "faint", "faint")
         else:
-            out += panel("ARCHIVED / ENDED", "", [f"none in the last {args.days}d"], W, "90")
+            out += panel("CODEX ▸ archived threads", "", [f"none in the last {args.days}d"], W, "faint", "faint")
         if hidden:
-            out.append(C.w("33", f"  {hidden} older archived chat(s) not shown: -n 0 for all, -n N for more, -d DAYS to widen"))
-    out.append(C.w("90", "  ctx = last turn's input (cached included) vs the model's window · * = waiting on approval · -h for flags"))
+            out += [C.t("secondary", "  " + ln) for ln in wrap_parts(f"{hidden} older archived chat(s) not shown: -n 0 for all, -n N for more, -d DAYS to widen".replace(", ", " · "), W - 2)]
+    out += [C.t("dim", "  " + ln) for ln in wrap_parts("ctx = last turn's input (cached included) vs the model's window · * = waiting on approval · -h for flags", W - 2)]
     if not getattr(args, "tui", False):
-        out.append(C.w("90", f"  view: {level_name(args.level)} (level {args.level}) · less: --level {max(0, args.level - 30)} · more: --level {min(100, args.level + 20)} · pick one: -i · full-screen: run without --no-tui"))
+        out += [C.t("dim", "  " + ln) for ln in wrap_parts(f"view: {level_name(args.level)} (level {args.level}) · less: --level {max(0, args.level - 30)} · more: --level {min(100, args.level + 20)} · pick one: -i · full-screen: run without --no-tui", W - 2)]
     return "\n".join(out)

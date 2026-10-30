@@ -1,6 +1,6 @@
 """Full-screen interactive view (stdlib curses): a menu-like list of chats.
 
-Two modes. NAVIGATE: ↑↓ move a highlighted cursor over the chats. SELECTED: Enter locks the chat (green), collapsed rows
+Two modes. NAVIGATE: ↑↓ move a highlighted cursor (orchid) over the chats. SELECTED: Enter locks the chat (coral), collapsed rows
 expand with their details and the footer switches to that chat's actions; b or Esc goes back to NAVIGATE. In NAVIGATE,
 Esc twice (or q) quits.
 
@@ -18,8 +18,8 @@ from .views import LEVELS, LEVEL_REPS, apply_level, level_name
 
 SGR = re.compile(r"\x1b\[([0-9;]*)m")
 ANSI_FG = {30: 0, 31: 1, 32: 2, 33: 3, 34: 4, 35: 5, 36: 6, 37: 7}
-CARD = re.compile(r"╭─ \d+ ")
-ROW = re.compile(r"│\s+\d+\s+\[?\s?(?:OK|AMBER|RED)\b")      # compact live row / archived row (badge with or without colour)
+CARD = re.compile(r"┏━▍\d+ ▸ ")
+ROW = re.compile(r"┃\s+\d+\s+[\[▐]?\s?(?:OK|AMBER|RED)\b")      # compact live row / archived row (badge with or without colour)
 GUTTER = 2
 ESC_WINDOW = 3.0                                              # seconds in which a second Esc quits
 
@@ -29,13 +29,22 @@ def plain(line):
 
 
 def parse_ansi(line):
-    """ANSI line -> [(text, fg, bg, bold, dim)]; fg and bg are 0-7 or None."""
+    """ANSI line -> [(text, fg, bg, bold, dim)]; fg and bg are colour numbers (0-7 ANSI, up to 255 for `38;5;n`) or None."""
     out, pos, bold, dim, fg, bg = [], 0, False, False, None, None
     for m in SGR.finditer(line):
         if m.start() > pos:
             out.append((line[pos:m.start()], fg, bg, bold, dim))
-        for c in (int(x) if x else 0 for x in m.group(1).split(";")):
-            if c == 0:
+        codes = [int(x) if x else 0 for x in m.group(1).split(";")]
+        k = 0
+        while k < len(codes):
+            c = codes[k]
+            if c in (38, 48) and k + 2 < len(codes) and codes[k + 1] == 5:
+                if c == 38:
+                    fg = codes[k + 2]
+                else:
+                    bg = codes[k + 2]
+                k += 2
+            elif c == 0:
                 bold, dim, fg, bg = False, False, None, None
             elif c == 1:
                 bold = True
@@ -43,10 +52,15 @@ def parse_ansi(line):
                 dim, fg = True, None
             elif c == 97:
                 fg = 7
+            elif 91 <= c <= 96:                               # bright colour: the plain colour in bold
+                fg, bold = c - 90, True
             elif 40 <= c <= 47:
                 bg = c - 40
+            elif 100 <= c <= 107:
+                bg = c - 100
             elif c in ANSI_FG:
                 fg = ANSI_FG[c]
+            k += 1
         pos = m.end()
     if pos < len(line):
         out.append((line[pos:], fg, bg, bold, dim))
@@ -63,7 +77,7 @@ def item_spans(lines):
         if CARD.match(plain(lines[st])):
             end = limit
         else:
-            while end < limit and not plain(lines[end + 1]).startswith("╰"):
+            while end < limit and not plain(lines[end + 1]).startswith("┗"):
                 end += 1
         spans.append((st, end))
     return spans
@@ -201,24 +215,37 @@ def tui(args):
     def run(scr, stop):
         curses.curs_set(0)
         curses.use_default_colors()
-        for i in range(8):
-            curses.init_pair(i + 1, i, -1)
-            for f in range(8):
-                curses.init_pair(10 + i * 8 + f, f, i)      # fg f on background i (health badges, selection)
+        C.use_terminal(256 if curses.COLORS >= 256 else 8)    # the Codex palette in 256 colours, else the 8 ANSI ones
+        pairs = {}
 
         def pair(fg, bg):
-            return curses.color_pair(10 + bg * 8 + fg)
+            """A curses colour pair for (fg, bg) (colour numbers, None/-1 = the terminal default), made on first use."""
+            fg, bg = -1 if fg is None else fg, -1 if bg is None else bg
+            if curses.COLORS < 256:
+                fg, bg = (fg % 8 if fg > 7 else fg), (bg % 8 if bg > 7 else bg)
+            if (fg, bg) == (-1, -1):
+                return curses.color_pair(0)
+            if (fg, bg) not in pairs:
+                if len(pairs) + 1 >= curses.COLOR_PAIRS:
+                    return curses.color_pair(0)
+                curses.init_pair(len(pairs) + 1, fg, bg)
+                pairs[(fg, bg)] = len(pairs) + 1
+            return curses.color_pair(pairs[(fg, bg)])
 
         def attr_of(fg, bg, bold, dim):
-            a = pair(fg or 0, bg) if bg is not None else curses.color_pair(0 if fg is None else fg + 1)
-            return a | (curses.A_BOLD if bold else 0) | (curses.A_DIM if dim else 0)
+            return pair(fg, bg) | (curses.A_BOLD if bold else 0) | (curses.A_DIM if dim else 0)
 
-        NAV_ATTR = pair(0, 5) | curses.A_BOLD                # black on magenta: the cursor
-        SEL_ATTR = pair(0, 2) | curses.A_BOLD                # black on green: the locked selection
-        KEY_ATTR = pair(0, 7) | curses.A_BOLD                # key caps in the footer
-        BACK_ATTR = pair(0, 3) | curses.A_BOLD               # the BACK button
-        WEB_ON = pair(0, 2) | curses.A_BOLD                  # the WEB tag while the server runs
-        URL_ATTR = curses.color_pair(7) | curses.A_BOLD | curses.A_UNDERLINE
+        def block(name):
+            """Near-black bold text on a solid block of a palette colour (the cursor, key caps, buttons)."""
+            bg = C.index(name)
+            return pair(C.index("ink"), 7 if bg == -1 else bg) | curses.A_BOLD
+
+        NAV_ATTR = block("primary")                          # the cursor: ink on orchid
+        SEL_ATTR = block("secondary")                        # the locked selection: ink on coral
+        KEY_ATTR = block("text")                             # key caps in the footer
+        BACK_ATTR = block("secondary")                       # the BACK button
+        WEB_ON = block("ok")                                 # the WEB tag while the server runs
+        URL_ATTR = pair(C.index("primary"), None) | curses.A_BOLD | curses.A_UNDERLINE
 
         C.on = True
         C.margin = GUTTER
@@ -244,8 +271,8 @@ def tui(args):
             args.expand = st["cur"] if st["locked"] else None
             text, items = report.draw(args, st["data"])
             raw = text.split("\n")
-            mark = refetch and prev is not None                  # yellow bar on lines that changed since the last disk read
-            view["lines"] = [C.w("1;33", "▌") + ln[1:] if mark and ln.startswith("  ") and plain(ln) not in prev else ln for ln in raw]
+            mark = refetch and prev is not None                  # coral bar on lines that changed since the last disk read
+            view["lines"] = [C.t("secondary", "▌", True) + ln[1:] if mark and ln.startswith("  ") and plain(ln) not in prev else ln for ln in raw]
             if refetch:
                 prev = {plain(ln) for ln in raw}
             view["items"] = items
