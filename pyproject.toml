@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codex-status-monitor-tui"
+dynamic = ["version"]
+description = "Read-only terminal dashboard for OpenAI Codex: chats, rate limits, tokens, context and OK/AMBER/RED health badges"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = []
+classifiers = [
+    "Operating System :: MacOS",
+    "Environment :: Console :: Curses",
+    "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+cust-codex-status = "cust_codex_status.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "cust_codex_status.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# the optional web view's page, built from web-ui/ by `npm run build` and committed, so installing needs no Node
+cust_codex_status = ["web/static/*", "web/static/assets/*", "web/static/plain/*", "web/static/plain/vendor/*"]

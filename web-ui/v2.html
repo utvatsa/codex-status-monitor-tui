@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Read-only dashboard of your Codex chats, served locally by cust-codex-status." />
+    <title>Codex Status</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/compare.css" />
+    <script src="/static/compare.js" defer></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>This page needs JavaScript. The same report is in the terminal: cust-codex-status --no-tui</noscript>
+    <script type="module" src="/src/v2/main.tsx"></script>
+  </body>
+</html>

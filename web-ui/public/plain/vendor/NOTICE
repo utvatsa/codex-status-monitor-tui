@@ -1,0 +1,9 @@
+preact-htm.mjs is htm 3.1.1's "preact/standalone.module.js" build, unmodified:
+https://unpkg.com/htm@3.1.1/preact/standalone.module.js (downloaded 2026-10-25, 13194 bytes)
+
+It bundles:
+- Preact (https://preactjs.com), MIT License, Copyright (c) 2015-present Jason Miller
+- htm (https://github.com/developit/htm), Apache License 2.0, Copyright 2018 Google Inc.
+
+Both licences allow redistribution; their full texts are at the URLs above.
+To update: download the same path for a newer htm version and check that it still exports html, render and the hooks app.js imports.
